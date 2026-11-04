@@ -79,7 +79,7 @@ async def _embed_query(q: str | None):
     if not q:
         return None
     try:
-        [v], _ = await get_embedder().embed([q])
+        [v], _ = await get_embedder().embed([q], query=True)
         return np.array(v, dtype=np.float32)
     except Exception as e:  # degrade to lexical-only search
         log.warning("search.embed_failed", error=repr(e)[:200])

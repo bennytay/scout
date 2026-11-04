@@ -63,9 +63,28 @@ async def _main(a) -> int:
             return 1 if problems else 0
         elif a.cmd == "enrich-retry":
             await _retry_failed()
+        elif a.cmd == "reembed":
+            print(f"re-embedded {await _reembed(a.all)} items")
     finally:
         await db.close()
     return 0
+
+
+async def _reembed(everything: bool) -> int:
+    """(Re)build embeddings, e.g. after switching EMBEDDING_PROVIDER. Same text recipe as the pipeline."""
+    import numpy as np
+
+    from .providers.embeddings import get_embedder
+
+    emb = get_embedder()
+    where = "" if everything else "where embedding is null"
+    rows = await db.fetch(f"select id, title, summary, full_text from items {where} order by id")
+    for i in range(0, len(rows), 64):
+        batch = rows[i:i + 64]
+        vecs, _ = await emb.embed([f"{r['title']}\n{(r['summary'] or r['full_text'] or '')[:2000]}" for r in batch])
+        for r, v in zip(batch, vecs, strict=True):
+            await db.execute("update items set embedding = %s where id = %s", np.array(v, dtype=np.float32), r["id"])
+    return len(rows)
 
 
 async def _retry_failed():
@@ -115,6 +134,8 @@ def main() -> None:
     h = sub.add_parser("health")
     h.add_argument("--notify", action="store_true", help="post problems to DISCORD_ALERTS_WEBHOOK_URL")
     sub.add_parser("enrich-retry", help="re-run enrichment for items where it failed")
+    re_ = sub.add_parser("reembed", help="rebuild embeddings (items without one, or --all)")
+    re_.add_argument("--all", action="store_true")
     m = sub.add_parser("mcp", help="run the MCP server")
     m.add_argument("--http", action="store_true", help="streamable HTTP with bearer auth (default stdio)")
     sub.add_parser("bot", help="run the Discord bot")

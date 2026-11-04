@@ -20,6 +20,7 @@ dependencies = [
   "openai>=1.40",
   "uvicorn>=0.30",
   "starlette>=0.37",
+  "fastembed>=0.9.1",
 ]
 
 [project.scripts]
