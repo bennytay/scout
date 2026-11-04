@@ -6,16 +6,16 @@
     "n_items": 56,
     "n_queries": 21,
     "failed": 0,
-    "cost_usd": 0.0377,
+    "cost_usd": 0.0378,
     "topics": {
-      "primary_acc": 0.911,
-      "any_overlap_acc": 0.964,
-      "micro_precision": 0.684,
-      "micro_recall": 0.886,
-      "micro_f1": 0.772
+      "primary_acc": 0.875,
+      "any_overlap_acc": 0.982,
+      "micro_precision": 0.693,
+      "micro_recall": 0.898,
+      "micro_f1": 0.782
     },
     "relevance": {
-      "band_acc": 0.75,
+      "band_acc": 0.768,
       "confusion_expected_vs_predicted": {
         "high": {
           "high": 10,
@@ -29,16 +29,16 @@
         },
         "low": {
           "high": 0,
-          "mid": 8,
-          "low": 7
+          "mid": 7,
+          "low": 8
         }
       }
     },
     "search": {
       "p@5": 0.871,
       "r@5": 0.871,
-      "mrr": 0.976,
-      "hit@1": 0.952
+      "mrr": 1.0,
+      "hit@1": 1.0
     },
     "author_filter": {
       "precision": 0.867,
@@ -127,8 +127,8 @@
       "query": "teleoperation and demonstration data collection",
       "p@5": 1.0,
       "r@5": 1.0,
-      "rr": 0.5,
-      "hit@1": false
+      "rr": 1.0,
+      "hit@1": true
     },
     {
       "query": "safe navigation for legged robots",
@@ -234,26 +234,9 @@
       "got": [
         [
           "datasets-benchmarks",
-          "slam-spatial-mapping"
+          "perception"
         ],
         0.6
-      ]
-    },
-    {
-      "title": "GSBR: Geometric Support Behavior Regularization for Online RL",
-      "expected": [
-        [
-          "manipulation",
-          "other"
-        ],
-        "low"
-      ],
-      "got": [
-        [
-          "manipulation",
-          "other"
-        ],
-        0.4
       ]
     },
     {
@@ -315,8 +298,7 @@
       ],
       "got": [
         [
-          "multi-agent",
-          "other"
+          "multi-agent"
         ],
         0.72
       ]
@@ -331,10 +313,27 @@
       ],
       "got": [
         [
-          "other",
-          "perception"
+          "humanoids",
+          "other"
         ],
-        0.45
+        0.5
+      ]
+    },
+    {
+      "title": "LLMs as MDP Designers: A Dependency-Aware Agentic Framework for Automated Robot ",
+      "expected": [
+        [
+          "other",
+          "sim2real"
+        ],
+        "low"
+      ],
+      "got": [
+        [
+          "sim2real",
+          "other"
+        ],
+        0.4
       ]
     },
     {
@@ -349,7 +348,8 @@
       "got": [
         [
           "vla-foundation-models",
-          "locomotion"
+          "locomotion",
+          "humanoids"
         ],
         0.75
       ]
@@ -365,6 +365,22 @@
       "got": [
         [
           "multi-agent",
+          "other"
+        ],
+        0.5
+      ]
+    },
+    {
+      "title": "Physics-Based Plausibility Assessment of AI-Predicted Vehicle Parameters for Aut",
+      "expected": [
+        [
+          "perception"
+        ],
+        "low"
+      ],
+      "got": [
+        [
+          "perception",
           "other"
         ],
         0.45
@@ -389,39 +405,6 @@
       ]
     },
     {
-      "title": "Mass Scaling Laws for Energy-Optimal Horizontal Multirotor Flight",
-      "expected": [
-        [
-          "hardware",
-          "locomotion"
-        ],
-        "low"
-      ],
-      "got": [
-        [
-          "locomotion",
-          "hardware"
-        ],
-        0.45
-      ]
-    },
-    {
-      "title": "CLARA: A Cognitively-Driven Clarification Framework for Grounding Ambiguous Requ",
-      "expected": [
-        [
-          "other"
-        ],
-        "low"
-      ],
-      "got": [
-        [
-          "vla-foundation-models",
-          "manipulation"
-        ],
-        0.4
-      ]
-    },
-    {
       "title": "ActOR: Ambient AI-Based Agentic Orchestration for Humanoid Autonomy in Operating",
       "expected": [
         [
@@ -433,10 +416,10 @@
       "got": [
         [
           "humanoids",
-          "vla-foundation-models",
-          "perception"
+          "slam-spatial-mapping",
+          "vla-foundation-models"
         ],
-        0.85
+        0.8
       ]
     },
     {
@@ -453,7 +436,7 @@
           "perception",
           "slam-spatial-mapping"
         ],
-        0.75
+        0.8
       ]
     }
   ]

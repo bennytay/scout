@@ -1,14 +1,16 @@
 # Scout: a robotics research radar for Auki Labs
 
 Scout watches the sources that matter for robotics (arXiv, GitHub, Hugging Face, X, Hacker News, alphaXiv,
-RSS) and **the links the team drops in one Discord channel**. It keeps a searchable database of papers, repos,
-posts, models and datasets (by **author, org and topic**) and reports in two places:
+RSS) and **the links the team drops in one Discord channel**. It keeps a database of papers, repos, posts,
+models and datasets that you can search by **author, org, topic and meaning**, and it reports in three places:
 
-- **Discord (passive)**: a feed channel gets one short message per source run. Every item is a link, the
-  Auki-relevant ones are marked 🔥 with a one-line reason, and off-topic noise is filtered out by the LLM.
-  Links the team shares get a 4-bullet reply.
-- **Any LLM (active)**: through MCP, ask Claude Desktop, Cursor or Claude Code anything about the
-  database, e.g. *"what's new in visual relocalization this week, and who's behind it?"*. Answers cite links.
+- **Discord, passive**: after each monitoring cycle the bot posts a **news brief**, the top 7–10 stories of the
+  period, written by an editor model that treats X as the newsroom and links each story to its paper, code and
+  model. Team-shared links get a 4-bullet reply.
+- **Web UI, direct**: `make web` opens a search-and-maintain interface with facets for author, org, topic, type,
+  source, date and Auki relevance, plus author pages, item pages, curation and source management. No LLM needed.
+- **Any LLM, conversational**: through MCP, ask Claude Desktop, Cursor or Claude Code anything about the data.
+  Answers cite links.
 
 ```mermaid
 flowchart LR
@@ -32,7 +34,9 @@ flowchart LR
   U --> PG[(Postgres<br/>pgvector + pg_trgm + tsvector)]
   PG --> S[hybrid search<br/>RRF of FTS + vector + fuzzy names]
   S --> MCP[MCP server<br/>stdio + HTTP/bearer]
-  PG --> BOT[Discord bot<br/>source feed + link replies]
+  PG --> BR[news brief<br/>editor LLM: cluster · X-first · top 7-10]
+  BR --> BOT[Discord bot<br/>brief + link replies]
+  S --> WEB[web UI<br/>search · facets · curate]
 ```
 
 ## Quick start (one command)
@@ -42,7 +46,8 @@ Runs entirely on your machine: Postgres in docker, embeddings on CPU, Claude for
 ```bash
 cp .env.example .env   # add ANTHROPIC_API_KEY (X_BEARER_TOKEN, GITHUB_TOKEN, DISCORD_* optional)
 make setup             # local Postgres (docker), deps, schema, 7-day backfill
-make bot               # monitor every source + post the Discord feed
+make bot               # monitor every source + post the news brief to Discord
+make web               # search + maintain the database at http://127.0.0.1:8000
 ```
 
 **For a live demo:** `make demo` starts the bot on a fresh, separate demo database (your main one is untouched),
@@ -104,27 +109,46 @@ claude mcp add --transport http scout https://<your-host>/mcp --header "Authoriz
 | `author_profile(name)` | Items, topics, frequent co-authors, orgs |
 | `trending(topic?, days?)` | Cross-source sightings + upvotes/stars/points/likes + Auki relevance |
 | `digest(days?)` | Counts by topic, most Auki-relevant, trending |
+| `latest_brief()` | The latest news brief: top stories with their links |
 | `add_link(url, note?)` | Ingest a URL now |
 
 Every result carries `url`, so answers can cite sources.
 
 ## Discord
 
-The bot does two things, and nothing else:
+The bot does two things, and nothing else.
 
-**1. The monitoring feed** (`DISCORD_FEED_CHANNEL_ID`). Every source runs on a schedule (X 3×/day to save
-credits, everything else every 4h). Each run posts one message:
+**1. Monitoring → news brief** (`DISCORD_FEED_CHANNEL_ID`). Each cycle (X 3×/day to save credits, everything
+else every 4h), one status line updates in place while sources are scanned:
 
 ```
-📡 arXiv · 40 new · 3 🔥 · 12 off-topic hidden
-• 📄 CrossWeave: Cross-Modal Scene and Instance Retrieval from Sparse 2D-3D Alignment · 🔥 0.75
-  ↳ Retrieving a 3D map region from a 2D query image is visual localization against a spatial map…
-• 📄 Probing Spatial State Representations in Visual Foundation Models
-• …+32 more (ask your LLM: search(source="arxiv", since="1d"))
+📡 Scanned: alphaXiv ✓ 33 · arXiv ✓ 56 · GitHub ✓ 1 · Hacker News ✓ 1 · Hugging Face ✓ 52 · RSS ✓ 2 → 145 new
 ```
 
-Every title is a link (no preview cards). A failing source posts `⚠️ GitHub failed: …`, and health problems
-(a source failing 3× in a row, an ingestion stall) are posted once.
+Then the brief (a real one, trimmed to 3 of its 10 stories). An editor model (Claude Opus 5.5) clusters everything new into stories. X posts are the primary
+source whenever one covers a story, and the supporting paper, code and model are linked:
+
+```
+📰 Robotics brief · Wed 04 Nov, 14:35 UTC · 701 new items → 10 stories
+
+1. Tutor Intelligence raises $75M Series B led by Andreessen Horowitz
+MIT CSAIL spin-out now has $117M total, signaling strong investor appetite for deployed warehouse robotics.
+𝕏 @lukas_m_ziegler
+
+5. Sparse anchors register robot sessions to maps despite scene changes 🔥
+Multi-session visual registration in changing environments is core to persistent shared maps and relocalization.
+paper: Sparse Anchors · paper: Spade-SLAM
+
+6. New feed-forward camera localization methods generalize across cameras and maps 🔥
+Ray-SCR and PGGT-Loc advance visual positioning across camera models and lightweight primitive-based maps.
+paper: Ray-SCR · paper: PGGT-Loc · paper: PadLoc · paper: Beyond Local Refinement
+
+📡 Monitored: arXiv 538 · Hugging Face 101 · alphaXiv 48 · Hacker News 36 · RSS 16 · GitHub 11 · X (team links only)
+```
+
+Every label is a link. The editor can only cite items from its candidate list, and URLs come from the
+database, so it can't invent a link. A brief costs about $0.065. Preview one any time with
+`scout brief --hours 24 --dry-run`.
 
 **2. Team links** (`DISCORD_LINKS_CHANNEL_ID`). Post any link (paper, repo, X post, article) and get:
 
@@ -136,8 +160,24 @@ Every title is a link (no preview cards). A failing source posts `⚠️ GitHub 
 • Related: Beyond Local Refinement: Wide-Area Precise…, PGGT-Loc: Primitive-Grounded Geometry…
 ```
 
-Papers or repos the link points to are ingested and linked too. Anything else, such as questions or
-digests, is done by talking to the database through an LLM (below).
+## Web UI: search and maintain the database directly
+
+`make web` → http://127.0.0.1:8000 (local only; set `WEB_PASSWORD` before exposing it).
+
+| Page | What you can do |
+|---|---|
+| **Brief** | The latest news briefs. Every link opens the source, and ↪ opens the item in Scout |
+| **Search** | Hybrid search box (meaning + keyword + fuzzy names); quoted phrases and `-exclusions` work. Clickable facets: topic, type, source, top orgs, top authors; filters for date and Auki relevance; sort by newest or relevance. Off-topic items are hidden by default |
+| **Item** | Summary, why it matters, authors, orgs, topics, extracted entities (robots, datasets, methods, all clickable), related items, full text. **Maintain:** fix topics or relevance (recorded as *curated*, so later re-enrichment never overwrites a human decision), re-run enrichment, delete |
+| **Authors** | Typo-tolerant author search; author pages with topics, co-authors, orgs and all their work |
+| **Sources & health** | Add, disable or **run now** any tracked source; per-source health, last runs, and LLM spend |
+| `/api/search` | The same search as JSON |
+
+**Context search.** "robots sharing a map of a building" finds collaborative-SLAM papers with no words in common,
+via the vector ranker. Entities extracted by the LLM (e.g. "GR00T", "Unitree G1") are indexed too. Paper
+search covers abstracts, not full PDFs (see Known limits).
+
+Power users can also connect any Postgres GUI (TablePlus, pgAdmin) with `DATABASE_URL`.
 
 ## Example questions with real answers
 
@@ -152,20 +192,22 @@ the real pipeline and scores them.
 
 | Metric | Keyword heuristic (no LLM) | **Claude Haiku 5.5** |
 |---|---|---|
-| Topic: primary topic correct | 46% | **91%** |
-| Topic: any expected topic predicted | 70% | **96%** |
-| Topic: micro-F1 over topic sets | 50% | **77%** (P 68%, R 89%) |
-| Auki relevance: band accuracy (high/mid/low) | 38% | **75%** |
+| Topic: primary topic correct | 46% | **88%** |
+| Topic: any expected topic predicted | 70% | **98%** |
+| Topic: micro-F1 over topic sets | 50% | **78%** (P 69%, R 90%) |
+| Auki relevance: band accuracy (high/mid/low) | 38% | **77%** |
 | Search: precision@5 (capped at #relevant) | 0.85 | **0.87** |
-| Search: MRR / hit@1 | 1.00 / 1.00 | 0.98 / 0.95 |
+| Search: MRR / hit@1 | 1.00 / 1.00 | 1.00 / 1.00 |
 | Author filter: precision / recall | 87% / 100% | 87% / 100% |
 | Enrichment cost for 56 items | $0 | **$0.038** (~$0.0007/item) |
 
 Both columns use the same local embedder (bge-small), so search differs only through the LLM's summaries.
+LLM outputs vary between runs: two runs a day apart scored 91%/88% primary topic and 75%/77% relevance band,
+so read every number as ±3 points.
 
 **What the errors look like.** Every relevance miss is off by one band, and none confuse *high* with *low*.
-The model is generous: 8 of the 15 papers I labelled *low* (peripheral robotics, e.g. a robot-tutoring HRI study)
-got 0.40–0.50, just over the *mid* cut-off. Topic precision (68%) is lower than recall (89%) because the model
+The model is generous: 7 of the 15 papers I labelled *low* (peripheral robotics, e.g. a robot-tutoring HRI study)
+got 0.40–0.50, just over the *mid* cut-off. Topic precision (69%) is lower than recall (90%) because the model
 often adds a reasonable second or third topic that the labels don't have. I deliberately did **not** tune the
 prompt against these 56 items, since that would be fitting to the test set. The fix is more labelled data and
 a held-out split.
@@ -182,12 +224,13 @@ Assumes roughly 250 new items/day (~7.5k/month) after dedupe.
 |---|---|---|
 | Enrichment (Claude Haiku 5.5) | measured $0.0007/item on the eval run | ~$5 |
 | Embeddings | local bge-small on CPU (~25 ms/item) | $0 |
+| News brief (Claude Opus 5.5) | ~$0.065/brief × 6 cycles/day | ~$12 |
 | Questions via MCP | the client's LLM does the reasoning; Scout only runs search | $0 |
 | X API v2 (pay-per-use) | 5 seeded accounts + 2 queries, 3 runs/day, ≤20 new posts each, incremental via `since_id` | ≤ 12.6k post reads/month at the cap (usually far fewer) × X's current per-read price |
 | Postgres | local docker (hosted later: Supabase/Neon free tiers cover months) | $0 |
 | Bot + MCP host | local for the demo (hosted: a ~$5 container) | $0 |
 | Cron | GitHub Actions, public repo | $0 |
-| **Total** | | **~$5/mo of Claude + your X credits** |
+| **Total** | | **~$17/mo of Claude + your X credits** (set `BRIEF_MODEL=claude-sonnet-5-5` to halve the brief cost) |
 
 Real per-item cost is recorded in `items.cost_usd` and per run in `ingest_runs.cost_usd`. The bot shows the
 cost of each ingestion in its reply.
@@ -269,7 +312,9 @@ src/scout/
   providers/       llm (anthropic | openai | fake), embeddings (openai | fake)
   search.py        hybrid search, related, author profiles, trending, digest, /ask
   mcp_server.py    7 MCP tools, stdio + HTTP with bearer auth
-  bot/             Discord bot: monitor loop + feed + link replies
+  brief.py         news brief: candidates → editor LLM → top 7-10 stories with links
+  bot/             Discord bot: monitor loop + brief + link replies
+  web/             web UI: search, facets, item/author pages, curation, sources
   health.py        health checks
 evals/             labelled data + harness + results
 tests/             connector tests (recorded fixtures), pipeline, search

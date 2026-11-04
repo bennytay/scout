@@ -93,12 +93,17 @@ class GitHubConnector(Connector):
             r = await http.get(f"{API}/users/{value}/repos", params={"sort": "pushed", "per_page": 30},
                                headers=_headers())
         r.raise_for_status()
+        # Anonymous GitHub allows 60 requests/hour. Without a token: no README fetches, releases checked for the
+        # 2 most recently pushed repos only (~3 calls per org). With GITHUB_TOKEN (5000/h): full depth.
+        lean = not settings().github_token
         out: list[Item] = []
+        release_checks = 0
         for repo in r.json():
             if repo.get("fork") or repo.get("archived"):
                 continue
             if (_dt(repo["created_at"]) or since) >= since:
-                out.append(repo_item(repo, await readme(http, repo["full_name"])))
-            if (_dt(repo.get("pushed_at")) or since) >= since:
+                out.append(repo_item(repo, None if lean else await readme(http, repo["full_name"])))
+            if (_dt(repo.get("pushed_at")) or since) >= since and not (lean and release_checks >= 2):
+                release_checks += 1
                 out += await _releases(http, repo["full_name"], since, repo)
         return out

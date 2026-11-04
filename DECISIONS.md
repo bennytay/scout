@@ -116,3 +116,33 @@ team's links, and be searchable*. Now:
 Migration 007 drops `feedback`, `post_drafts` and `discord_messages`; search ranking is pure RRF again.
 Found while testing the feed: Hacker News' Algolia search matched "SLAM" to "slams" and loosely matched
 unrelated stories, so typo tolerance is off and matching is restricted to title/url.
+
+### D20. The news brief: a reasoning layer, X-first (supersedes the per-source feed in D19)
+Per-source updates ("56 arXiv papers, 52 HF items…") were fragmented: the reader had to do the synthesis.
+Now each cycle ends with one brief of the top 7–10 *stories*. Design choices:
+- **Clustering is the LLM's job, not ours.** Candidates come with explicit links (post→paper, repo→paper) and
+  nearest neighbours by meaning, and the editor decides what's one story. Hand-written clustering rules
+  (shared URLs only) would miss "a post about the paper with no link".
+- **X is the newsroom.** When a post covers a story it's the primary link, and the paper, code and model are
+  supporting links. Without an X key the brief still works from the other sources plus team-shared X links.
+- **No invented links.** The editor returns candidate ids only; URLs are filled in from the database, and
+  unknown or reused ids are dropped.
+- **Model split:** Opus 5.5 for the brief (one editorial reasoning call per cycle, ~$0.065); Haiku 5.5 for
+  per-item enrichment (hundreds of calls). `BRIEF_MODEL` is configurable.
+- **Visible monitoring without spam:** one status line, edited in place as each source finishes.
+
+### D21. A web UI for direct search and maintenance (refines "no web frontend")
+The brief said no web frontend; the interface was MCP and Discord. But "maintain a database, searchable by
+author and topic" needs a direct, non-LLM way to browse, fix and curate: an LLM is the wrong tool for
+"show me everything tagged humanoids by NVIDIA last week, then fix this one's topic". Options weighed:
+generic Postgres GUIs (no hybrid search, raw tables), Metabase (heavy, dashboards not search), Datasette
+(SQLite only), a TUI (bad on video), Notion/Airtable sync (two sources of truth). Chosen: a small
+server-rendered Starlette app on the **same search function as MCP**, so answers never disagree. It has no
+JS build and no new dependencies. Human edits are marked `curated_at`, and re-enrichment never overwrites them.
+
+### D22. Context search: entities indexed; explicit syntax binds every ranker
+Entities extracted by the LLM are part of the full-text index. Quoted phrases and `-exclusions` now filter
+the vector and fuzzy rankers too (before, `-aerial` still returned an aerial paper via the vector ranker).
+Tried and rejected: letting long questions match on *any* word. Even ranked after all-word matches, it cost
+P@5 0.85 → 0.80 on the eval set, because weak lexical hits compound with vector hits in RRF. Paraphrased
+questions are the vector ranker's job.

@@ -137,3 +137,18 @@ def test_hf_owner_is_a_handle_not_an_org():
 
     i = hub_item({"id": "lyl472324464/so100_pick", "likes": 3}, "datasets")
     assert i.orgs == [] and i.author_handles == {"hf": "lyl472324464"}
+
+
+@respx.mock
+async def test_github_lean_mode_without_token():
+    import json as _json
+
+    repos = [_json.loads(fixture("gh_repo.json")) | {"full_name": f"org/r{i}", "html_url": f"https://github.com/org/r{i}",
+             "created_at": "2026-11-01T00:00:00Z", "pushed_at": "2026-11-03T00:00:00Z", "fork": False, "archived": False}
+             for i in range(6)]
+    respx.get("https://api.github.com/orgs/org/repos").mock(return_value=httpx.Response(200, json=repos))
+    readme = respx.get(url__regex=r".*/readme$").mock(return_value=httpx.Response(200, text="# hi"))
+    rel = respx.get(url__regex=r".*/releases(\?.*)?$").mock(return_value=httpx.Response(200, json=[]))
+    async with http_client() as http:
+        items = await REGISTRY["github"].fetch(http, "github_org", "org", OLD)
+    assert len(items) == 6 and readme.call_count == 0 and rel.call_count == 2  # ~3 calls, not ~13

@@ -1,20 +1,20 @@
 # Eval results (2026-11-05)
 
 - LLM: `anthropic:claude-haiku-5-5` · embeddings: `local:BAAI/bge-small-en-v1.5`
-- 56 hand-labelled items, 21 search queries, 5 author queries · enrichment cost $0.0377 · failures 0
+- 56 hand-labelled items, 21 search queries, 5 author queries · enrichment cost $0.0378 · failures 0
 
 | Metric | Value |
 |---|---|
-| topics · primary_acc | 91% |
-| topics · any_overlap_acc | 96% |
-| topics · micro_precision | 68% |
-| topics · micro_recall | 89% |
-| topics · micro_f1 | 77% |
-| relevance · band accuracy | 75% |
+| topics · primary_acc | 88% |
+| topics · any_overlap_acc | 98% |
+| topics · micro_precision | 69% |
+| topics · micro_recall | 90% |
+| topics · micro_f1 | 78% |
+| relevance · band accuracy | 77% |
 | search · p@5 | 0.87 |
 | search · r@5 | 0.87 |
-| search · mrr | 0.98 |
-| search · hit@1 | 0.95 |
+| search · mrr | 1.00 |
+| search · hit@1 | 1.00 |
 | author filter · precision | 87% |
 | author filter · recall | 100% |
 
@@ -24,7 +24,7 @@ Relevance confusion (rows = labelled, cols = predicted):
 |---|---|---|---|
 | **high** | 10 | 1 | 0 |
 | **mid** | 5 | 25 | 0 |
-| **low** | 0 | 8 | 7 |
+| **low** | 0 | 7 | 8 |
 
 Per-query:
 
@@ -41,7 +41,7 @@ Per-query:
 | localization against a floor plan | 1.00 | 1.00 |
 | structure from motion reconstruction | 1.00 | 1.00 |
 | benchmarks for robot learning | 0.25 | 1.00 |
-| teleoperation and demonstration data collection | 1.00 | 0.50 |
+| teleoperation and demonstration data collection | 1.00 | 1.00 |
 | safe navigation for legged robots | 1.00 | 1.00 |
 | swarm robots reality gap | 1.00 | 1.00 |
 | feature matching for SLAM and visual localization | 1.00 | 1.00 |
