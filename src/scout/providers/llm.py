@@ -17,9 +17,15 @@ class LLM(Protocol):
     async def text(self, system: str, user: str, max_tokens: int = 2000) -> tuple[str, float]: ...
 
 
-def _cost(inp: int, out: int) -> float:
+PRICES = {  # $/MTok (input, output); anything else falls back to LLM_*_USD_PER_MTOK
+    "claude-haiku-5-5": (0.10, 0.50), "claude-sonnet-5-5": (2.0, 10.0), "claude-opus-5-5": (4.0, 20.0),
+}
+
+
+def _cost(inp: int, out: int, model: str | None = None) -> float:
     s = settings()
-    return inp / 1e6 * s.llm_input_usd_per_mtok + out / 1e6 * s.llm_output_usd_per_mtok
+    pin, pout = PRICES.get(model or "", (s.llm_input_usd_per_mtok, s.llm_output_usd_per_mtok))
+    return inp / 1e6 * pin + out / 1e6 * pout
 
 
 class AnthropicLLM:
@@ -38,7 +44,7 @@ class AnthropicLLM:
             messages=[{"role": "user", "content": user}],
             output_format=schema,
         )
-        return r.parsed_output, _cost(r.usage.input_tokens, r.usage.output_tokens)
+        return r.parsed_output, _cost(r.usage.input_tokens, r.usage.output_tokens, self.model)
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=20), reraise=True)
     async def text(self, system, user, max_tokens=2000):
@@ -46,7 +52,7 @@ class AnthropicLLM:
             model=self.model, max_tokens=max_tokens, system=system, messages=[{"role": "user", "content": user}]
         )
         out = "".join(b.text for b in r.content if b.type == "text")
-        return out, _cost(r.usage.input_tokens, r.usage.output_tokens)
+        return out, _cost(r.usage.input_tokens, r.usage.output_tokens, self.model)
 
 
 class OpenAILLM:
@@ -97,6 +103,11 @@ class FakeLLM:
     async def structured(self, system, user, schema):
         from ..models import Enrichment, Entities
 
+        if schema.__name__ == "Brief":  # offline: one story per candidate, highest relevance first
+            ids = [int(m) for m in re.findall(r"^\[(\d+)\]", user, re.M)][:8]
+            return schema.model_validate({"stories": [
+                {"headline": f"Story {i}", "why": "Offline heuristic brief.", "primary_id": i, "supporting_ids": []}
+                for i in ids]}), 0.0
         if schema is not Enrichment:  # e.g. QueryPlan for /ask: plain keyword search
             return schema.model_validate({"query": user}), 0.0
         low = user.lower()
@@ -114,10 +125,10 @@ class FakeLLM:
         return "(fake LLM) " + user[:500], 0.0
 
 
-def get_llm() -> LLM:
+def get_llm(model: str | None = None) -> LLM:
     s = settings()
     if s.llm_provider == "anthropic":
-        return AnthropicLLM(s.llm_model)
+        return AnthropicLLM(model or s.llm_model)
     if s.llm_provider == "openai":
-        return OpenAILLM(s.llm_model)
+        return OpenAILLM(model or s.llm_model)
     return FakeLLM()

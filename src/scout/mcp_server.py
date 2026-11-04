@@ -71,6 +71,15 @@ async def digest(days: int = 7) -> dict:
 
 
 @mcp.tool()
+async def latest_brief() -> dict:
+    """The most recent news brief: top 7-10 stories (X-first), each with links to paper/code/model."""
+    from .brief import latest
+
+    rows = await latest(1)
+    return dict(rows[0]) if rows else {"error": "no brief yet"}
+
+
+@mcp.tool()
 async def add_link(url: str, note: str | None = None) -> dict:
     """Ingest a URL now (paper, repo, X post, article...). Returns the stored item with its enrichment."""
     r = await ingest_url(url, submitted_by="mcp")

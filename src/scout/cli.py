@@ -50,6 +50,21 @@ async def _main(a) -> int:
                 print(f"[{x['n']}] {x['title']} {x['url']}")
         elif a.cmd == "trending":
             _print(await search.trending(a.topic, a.days))
+        elif a.cmd == "brief":
+            from .bot.format import render_brief
+            from .brief import make_brief
+            from .config import settings
+
+            since = datetime.now(UTC) - timedelta(hours=a.hours) if a.hours else None
+            b = await make_brief(since=since, save=not a.dry_run)
+            if not b:
+                print("nothing in the window")
+            else:
+                msgs = render_brief(b, x_monitored=bool(settings().x_bearer_token))
+                print("\n\n----- (next message) -----\n\n".join(msgs))
+                print(f"\n[{b['n_candidates']} candidates · {b['model']} · ${b['cost_usd']}]", file=sys.stderr)
+                if a.post:
+                    await _post_to_feed(msgs)
         elif a.cmd == "health":
             problems = await health.problems()
             print("\n".join(problems) or "healthy")
@@ -63,6 +78,21 @@ async def _main(a) -> int:
     finally:
         await db.close()
     return 0
+
+
+async def _post_to_feed(msgs: list[str]) -> None:
+    """Post via Discord's REST API with the bot token (no gateway connection needed)."""
+    import httpx
+
+    from .config import settings
+
+    cfg = settings()
+    async with httpx.AsyncClient(timeout=20) as http:
+        for m in msgs:
+            r = await http.post(f"https://discord.com/api/v10/channels/{cfg.discord_feed_channel_id}/messages",
+                                headers={"Authorization": f"Bot {cfg.discord_token}"},
+                                json={"content": m, "flags": 4})  # 4 = suppress link previews
+            r.raise_for_status()
 
 
 async def _reembed(everything: bool) -> int:
@@ -114,6 +144,10 @@ def main() -> None:
     tr = sub.add_parser("trending")
     tr.add_argument("--topic")
     tr.add_argument("--days", type=int, default=7)
+    br = sub.add_parser("brief", help="write the news brief (top 7-10 stories) for the window")
+    br.add_argument("--hours", type=int, help="window length (default: since the last brief)")
+    br.add_argument("--dry-run", action="store_true", help="don't save it")
+    br.add_argument("--post", action="store_true", help="also post it to the Discord feed channel")
     h = sub.add_parser("health")
     h.add_argument("--notify", action="store_true", help="post problems to DISCORD_ALERTS_WEBHOOK_URL")
     sub.add_parser("enrich-retry", help="re-run enrichment for items where it failed")

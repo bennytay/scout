@@ -11,7 +11,8 @@ class Settings(BaseSettings):
 
     # Providers (swappable). llm_provider: anthropic | openai | fake. embedding_provider: local | openai | fake
     llm_provider: str = "anthropic"
-    llm_model: str = "claude-haiku-5-5"
+    llm_model: str = "claude-haiku-5-5"        # per-item enrichment: cheap, high volume
+    brief_model: str = "claude-opus-5-5"       # the news brief: one editorial reasoning call per cycle
     llm_input_usd_per_mtok: float = 0.10
     llm_output_usd_per_mtok: float = 0.50
     embedding_provider: str = "local"

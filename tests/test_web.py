@@ -80,3 +80,12 @@ async def test_password_when_configured(client, database, monkeypatch):
     monkeypatch.setattr(settings(), "web_password", "pw")
     assert (await client.get("/")).status_code == 401
     assert (await client.get("/", auth=("any", "pw"))).status_code == 200
+
+
+async def test_brief_page(client, database):
+    assert "No brief yet" in (await client.get("/brief")).text
+    await database.execute("""insert into briefs (window_start, window_end, n_candidates, n_new_items, model, stories)
+        values (now() - interval '1 day', now(), 5, 9, 'fake', '[{"headline": "Big news", "why": "w", "hot": true,
+        "links": [{"label": "paper: X", "url": "https://arxiv.org/abs/1", "item_id": 1, "type": "paper"}]}]')""")
+    r = await client.get("/brief")
+    assert "Big news" in r.text and "paper: X" in r.text

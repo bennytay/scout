@@ -49,7 +49,7 @@ def qs(params: dict, **change) -> str:
 
 def page(title: str, body: str, active: str = "") -> HTMLResponse:
     nav = "".join(f'<a href="{u}" class="{"on" if active == k else ""}">{n}</a>'
-                  for k, u, n in [("search", "/", "Search"), ("authors", "/authors", "Authors"),
+                  for k, u, n in [("brief", "/brief", "Brief"), ("search", "/", "Search"), ("authors", "/authors", "Authors"),
                                   ("sources", "/sources", "Sources & health")])
     return HTMLResponse(f"""<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{h(title)} · Scout</title>
@@ -245,6 +245,28 @@ async def add_link(request: Request):
     return page("Add failed", f'<p class="err">Couldn\'t ingest {h(url)}: {h(r.error if r else "no url")}</p>')
 
 
+# ---------------------------------------------------------------- brief
+async def brief_page(request: Request):
+    rows = await db.fetch("select * from briefs order by created_at desc limit 5")
+    if not rows:
+        return page("Brief", '<p class="empty">No brief yet. The bot writes one after each monitoring cycle '
+                             '(or run <code>scout brief</code>).</p>', "brief")
+    out = []
+    for n, b in enumerate(rows):
+        stories = "".join(
+            f"""<li class="story"><div class="hl">{h(st['headline'])}{' <span class="fire">🔥</span>' if st.get('hot') else ''}</div>
+<p>{h(st['why'])}</p><div class="links">{''.join(
+                f'<a class="lk" href="{h(lk["url"])}" target="_blank" rel="noopener">{h(lk["label"])}</a>'
+                f'<a class="lk2" href="/item/{lk["item_id"]}" title="open in Scout">↪</a>' for lk in st['links'])}</div></li>"""
+            for st in b["stories"])
+        mon = " · ".join(f"{h(k)} {v}" for k, v in (b["sources"] or {}).items())
+        out.append(f"""<section class="card {'big' if n == 0 else 'old'}">
+<div class="meta">{h(str(b['created_at'])[:16])} UTC · {b['n_new_items']} new items · {b['n_candidates']} candidates
+ → {len(b['stories'])} stories · {h(b['model'])} · ${float(b['cost_usd']):.3f}</div>
+<ol class="stories">{stories}</ol><div class="meta">📡 {mon}</div></section>""")
+    return page("Brief", "<h1>📰 Robotics brief</h1>" + "".join(out), "brief")
+
+
 # ---------------------------------------------------------------- authors
 async def authors_page(request: Request):
     q = (request.query_params.get("q") or "").strip()
@@ -386,7 +408,7 @@ async def lifespan(_app):
 
 app = Starlette(
     routes=[
-        Route("/", home), Route("/item/{id:int}", item_page),
+        Route("/", home), Route("/brief", brief_page), Route("/item/{id:int}", item_page),
         Route("/item/{id:int}/curate", curate, methods=["POST"]),
         Route("/item/{id:int}/reenrich", reenrich_item, methods=["POST"]),
         Route("/item/{id:int}/delete", delete_item, methods=["POST"]),

@@ -1,26 +1,12 @@
 """Discord messages: concise, bulleted, everything a link, never over Discord's 2000-char limit."""
-from scout.bot.format import link_reply, source_failed, source_update
+from datetime import UTC, datetime
+
+from scout.bot.format import link_reply, render_brief, source_failed
 
 
 def item(n: int, rel: float, **kw) -> dict:
     return {"id": n, "title": f"Paper {n} about [robots]", "url": f"https://arxiv.org/abs/2611.{n:05d}",
             "type": "paper", "auki_relevance": rel, "auki_relevance_reason": f"Reason {n}.", **kw}
-
-
-def test_source_update_sorts_highlights_and_truncates():
-    msg = source_update("arxiv", [item(1, 0.3), item(2, 0.9), item(3, 0.5)] + [item(i, 0.35) for i in range(4, 20)]
-                        + [item(99, 0.0)])
-    lines = msg.splitlines()
-    assert lines[0] == "📡 **arXiv** · 19 new · 1 🔥 · 1 off-topic hidden"
-    assert lines[1].startswith("• 📄 [Paper 2 about (robots)](<https://arxiv.org/abs/2611.00002>) · 🔥 0.90")
-    assert lines[2] == "  ↳ Reason 2."                       # reason only for highlighted items
-    assert "Reason 1." not in msg and "…+11 more" in lines[-1]  # 8 shown, rest summarised
-    assert "](<https://" in msg                                 # links never unfurl into preview cards
-
-
-def test_source_update_stays_under_discord_limit():
-    many = [item(i, 0.95, title="T" * 300, auki_relevance_reason="R" * 400) for i in range(50)]
-    assert len(source_update("huggingface", many, show=50)) <= 2000
 
 
 def test_link_reply_is_four_bullets():
@@ -40,5 +26,25 @@ def test_link_reply_duplicate_and_failure():
     assert source_failed("github", ["HTTPStatusError 403 rate limit"]).startswith("⚠️ **GitHub** failed:")
 
 
-def test_source_update_all_off_topic():
-    assert source_update("github", [item(1, 0.1), item(2, 0.0)]) == "📡 **GitHub** · 2 checked, none relevant"
+
+def brief(n_stories: int, why: str = "Why it matters.") -> dict:
+    return {"window_end": datetime(2026, 11, 5, 9, 0, tzinfo=UTC), "n_new_items": 120, "sources": {"arxiv": 80, "x": 12},
+            "stories": [{"headline": f"Headline {i}", "why": why, "hot": i == 1,
+                         "links": [{"label": "𝕏 @lab", "url": f"https://x.com/lab/status/{i}"},
+                                   {"label": "paper: Foo", "url": f"https://arxiv.org/abs/2611.{i:05d}"}]}
+                        for i in range(1, n_stories + 1)]}
+
+
+def test_render_brief_is_numbered_linked_and_concise():
+    [msg] = render_brief(brief(3))
+    lines = msg.splitlines()
+    assert lines[0] == "📰 **Robotics brief** · Thu 05 Nov, 09:00 UTC · 120 new items → 3 stories"
+    assert "**1. Headline 1** 🔥" in lines and "**2. Headline 2**" in lines
+    assert "[𝕏 @lab](<https://x.com/lab/status/1>) · [paper: Foo](<https://arxiv.org/abs/2611.00001>)" in lines
+    assert lines[-1] == "📡 Monitored: arXiv 80 · X 12"
+
+
+def test_render_brief_splits_at_story_boundaries():
+    msgs = render_brief(brief(10, why="W" * 190), x_monitored=False)
+    assert len(msgs) >= 2 and all(len(m) <= 2000 for m in msgs)
+    assert all(not m.startswith("\n") for m in msgs) and "**10. Headline 10**" in msgs[-1]
