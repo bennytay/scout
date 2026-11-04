@@ -111,9 +111,8 @@ async def get_item(item_id: int) -> dict | None:
     if not item:
         return None
     extra = await db.fetchrow(
-        """select i.full_text is not null as has_full_text, i.entities, i.cost_usd, i.ingested_at,
-                  coalesce(f.up, 0) as thumbs_up, coalesce(f.down, 0) as thumbs_down
-           from items i left join item_feedback f on f.item_id = i.id where i.id = %s""", item_id)
+        "select full_text is not null as has_full_text, entities, cost_usd, ingested_at from items where id = %s",
+        item_id)
     item.update(extra)
     item["related"] = await find_related(item_id, limit=5)
     return _clean(item)
@@ -186,13 +185,12 @@ with w as (
        + 0.5 * ln(1 + coalesce((i.metrics->>'gh_stars')::float, 0))
        + 0.5 * ln(1 + coalesce((i.metrics->>'x_likes')::float, 0))
        + ln(1 + coalesce((i.metrics->>'ax_votes')::float, 0)) as buzz,
-         coalesce(f.net, 0) as net_feedback,
          coalesce(i.auki_relevance, 0) as rel
-  from items i left join item_feedback f on f.item_id = i.id
+  from items i
   where coalesce(i.published_at, i.ingested_at) >= now() - make_interval(days => %s)
     and (%s::text is null or exists (select 1 from item_topics t where t.item_id = i.id and t.topic_slug = %s))
 )
-select id, buzz + 1.5 * (n_sources - 1) + 2 * tanh(net_feedback / 2.0) + 2 * rel as score, n_sources
+select id, buzz + 1.5 * (n_sources - 1) + 2 * rel as score, n_sources
 from w order by score desc limit %s
 """
 
@@ -215,9 +213,8 @@ async def digest(days: int = 7) -> dict:
         """select t.topic_slug as topic, count(*) as n from items i join item_topics t on t.item_id = i.id
            where i.ingested_at >= now() - make_interval(days => %s) group by 1 order by 2 desc""", days)
     top = await db.fetch(
-        """select i.id from items i left join item_feedback f on f.item_id = i.id
-           where coalesce(i.published_at, i.ingested_at) >= now() - make_interval(days => %s)
-           order by coalesce(i.auki_relevance, 0) + 0.15 * coalesce(f.net, 0) desc limit 8""", days)
+        """select id from items where coalesce(published_at, ingested_at) >= now() - make_interval(days => %s)
+           order by auki_relevance desc nulls last limit 8""", days)
     return {
         "window_days": days, "stats": _clean(dict(stats)), "by_topic": by_topic,
         "most_relevant_to_auki": [_clean(i) for i in await hydrate([r["id"] for r in top])],

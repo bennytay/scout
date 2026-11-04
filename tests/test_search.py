@@ -59,16 +59,6 @@ async def test_topic_type_and_since_filters(database):
     assert ids[2] not in recent and ids[0] in recent
 
 
-async def test_feedback_boosts_ranking(database):
-    await seed()
-    before = [x["id"] for x in await search.search("humanoid")]
-    loser = before[-1]
-    for u in ("u1", "u2", "u3"):
-        await database.execute("insert into feedback (item_id, user_id, signal) values (%s, %s, 1)", loser, u)
-    after = [x["id"] for x in await search.search("humanoid")]
-    assert after.index(loser) < before.index(loser)
-
-
 async def test_related_author_profile_trending(database):
     ids = await seed()
     rel = await search.find_related(ids[0])

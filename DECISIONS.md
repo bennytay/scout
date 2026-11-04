@@ -103,3 +103,16 @@ With pay-per-use credits, the official API is the most direct source. Cost contr
 `since_id` per source (only new posts are read), a cached user id (no repeat lookups), `X_MAX_RESULTS` per
 source, search restricted to `has:links -is:retweet -is:reply lang:en`, and X runs 3×/day versus 6×/day for
 the free sources. Shared links still go to the free fxtwitter endpoint first, and the API is the fallback.
+
+### D19. Strip the bot back to the brief: a passive feed + team links (supersedes D12, D13; drops feedback from D8)
+The bot had grown slash commands (/ask, /follow, /track, /unfollow, /sources, /digest), reactions-as-feedback,
+a weekly digest and draft posts. That's a lot of surface for a brief that asks to *follow sources, take the
+team's links, and be searchable*. Now:
+- **Monitoring is visible**: the bot runs the connectors itself and posts one bulleted message per source run,
+  with every item a link, 🔥 + reason for Auki-relevant items, and LLM-judged off-topic items (< 0.3) counted
+  but hidden. "Nothing new" is posted too, so you can see the monitor is alive.
+- **Team links** get 4 bullets (what / why Auki / topics + who / related) instead of a thread and an embed.
+- **Questions go through MCP**, where the user's own LLM is the interface. There's no second chat UI to maintain.
+Migration 007 drops `feedback`, `post_drafts` and `discord_messages`; search ranking is pure RRF again.
+Found while testing the feed: Hacker News' Algolia search matched "SLAM" to "slams" and loosely matched
+unrelated stories, so typo tolerance is off and matching is restricted to title/url.

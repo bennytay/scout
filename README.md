@@ -1,11 +1,14 @@
 # Scout: a robotics research radar for Auki Labs
 
-Scout follows the sources that matter for robotics (arXiv, GitHub, Hugging Face, X, Hacker News, alphaXiv,
-RSS), plus **every link the team drops in one Discord channel**. It keeps a database of papers, repos, posts,
-models and datasets that you can search by **author, org and topic**. It has no web UI. You talk to it through:
+Scout watches the sources that matter for robotics (arXiv, GitHub, Hugging Face, X, Hacker News, alphaXiv,
+RSS) and **the links the team drops in one Discord channel**. It keeps a searchable database of papers, repos,
+posts, models and datasets (by **author, org and topic**) and reports in two places:
 
-- **MCP**: ask Claude Desktop, Cursor or Claude Code *"what's new in visual relocalization this week, and who's behind it?"*. Answers cite sources.
-- **Discord**: post a link and get a threaded summary, topics, *why it matters to Auki* and related items. Then `/ask`, `/follow`, `/track`, 👍/👎.
+- **Discord (passive)**: a feed channel gets one short message per source run. Every item is a link, the
+  Auki-relevant ones are marked 🔥 with a one-line reason, and off-topic noise is filtered out by the LLM.
+  Links the team shares get a 4-bullet reply.
+- **Any LLM (active)**: through MCP, ask Claude Desktop, Cursor or Claude Code anything about the
+  database, e.g. *"what's new in visual relocalization this week, and who's behind it?"*. Answers cite links.
 
 ```mermaid
 flowchart LR
@@ -24,13 +27,12 @@ flowchart LR
     DD --> E[enrich: LLM structured output<br/>summary · topics · authors/orgs · entities · Auki relevance]
     E --> EM[embed locally<br/>bge-small, CPU] --> U[upsert + sightings] --> L[link paper ↔ repo ↔ post]
   end
-  A & G & H & X & N & AX & R -->|scheduler / cron| C
+  A & G & H & X & N & AX & R -->|bot's monitor loop / cron| C
   D -->|priority| C
   U --> PG[(Postgres<br/>pgvector + pg_trgm + tsvector)]
   PG --> S[hybrid search<br/>RRF of FTS + vector + fuzzy names]
   S --> MCP[MCP server<br/>stdio + HTTP/bearer]
-  S --> BOT[Discord bot<br/>threads · /ask · alerts · digest]
-  BOT -->|👍/👎| PG
+  PG --> BOT[Discord bot<br/>source feed + link replies]
 ```
 
 ## Quick start (one command)
@@ -40,8 +42,11 @@ Runs entirely on your machine: Postgres in docker, embeddings on CPU, Claude for
 ```bash
 cp .env.example .env   # add ANTHROPIC_API_KEY (X_BEARER_TOKEN, GITHUB_TOKEN, DISCORD_* optional)
 make setup             # local Postgres (docker), deps, schema, 7-day backfill
-make up                # scheduler (keeps ingesting) + Discord bot
+make bot               # monitor every source + post the Discord feed
 ```
+
+**For a live demo:** `make demo` starts the bot on a fresh, separate demo database (your main one is untouched),
+so the feed channel fills up source by source in front of you.
 
 No keys yet? `LLM_PROVIDER=fake EMBEDDING_PROVIDER=fake make setup` runs the whole system offline with
 deterministic heuristics, so tests, evals and demos work with zero credentials.
@@ -94,28 +99,45 @@ claude mcp add --transport http scout https://<your-host>/mcp --header "Authoriz
 | Tool | What it does |
 |---|---|
 | `search(query?, author?, org?, topic?, type?, source?, since?, min_relevance?, limit?)` | Hybrid search. Fuzzy, typo-tolerant author/org names (`"levine"`, `"eth zürich"`), relative dates (`"7d"`). |
-| `get_item(id)` | Full record: summary, entities, metrics, feedback, related items |
+| `get_item(id)` | Full record: summary, entities, metrics, related items |
 | `find_related(id)` | Explicit links (repo *implements* paper, post *discusses* paper) + nearest neighbours |
 | `author_profile(name)` | Items, topics, frequent co-authors, orgs |
-| `trending(topic?, days?)` | Cross-source sightings + upvotes/stars/points + team 👍 + Auki relevance |
+| `trending(topic?, days?)` | Cross-source sightings + upvotes/stars/points/likes + Auki relevance |
 | `digest(days?)` | Counts by topic, most Auki-relevant, trending |
 | `add_link(url, note?)` | Ingest a URL now |
 
 Every result carries `url`, so answers can cite sources.
 
-## Discord (one channel)
+## Discord
 
-| | |
-|---|---|
-| Post any link in the links channel | Ingested as priority → thread reply: summary, topics, **why it matters to Auki** (with a relevance bar), who's behind it, related items. Papers/repos the link points to are pulled in and linked too. |
-| `/ask <question>` | The question is turned into filters (author/org/topic/date), searched, and answered with numbered citations |
-| `/follow @handle` · `/follow github:org[/repo]` · `/follow <rss url>` | Track a source (RSS is validated first) |
-| `/track <keyword>` | Fans out to arXiv, HN, GitHub and X queries |
-| `/unfollow <target>` · `/sources` | Manage sources and see their health 🟢/🔴 |
-| 👍 / 👎 on any bot message | Feedback that boosts or demotes ranking in search and trending |
-| Alerts channel | Only items with relevance ≥ 0.75 (configurable), max 5 per 10 min |
-| Mondays 08:00 UTC (or `/digest`) | Weekly digest + 2–3 **draft** X posts in Auki's voice. ✅/❌ records approval; **nothing is ever auto-published** |
-| Health | Sources failing 3× in a row, failed runs, or a 36h ingestion stall get posted to the alerts channel |
+The bot does two things, and nothing else:
+
+**1. The monitoring feed** (`DISCORD_FEED_CHANNEL_ID`). Every source runs on a schedule (X 3×/day to save
+credits, everything else every 4h). Each run posts one message:
+
+```
+📡 arXiv · 40 new · 3 🔥 · 12 off-topic hidden
+• 📄 CrossWeave: Cross-Modal Scene and Instance Retrieval from Sparse 2D-3D Alignment · 🔥 0.75
+  ↳ Retrieving a 3D map region from a 2D query image is visual localization against a spatial map…
+• 📄 Probing Spatial State Representations in Visual Foundation Models
+• …+32 more (ask your LLM: search(source="arxiv", since="1d"))
+```
+
+Every title is a link (no preview cards). A failing source posts `⚠️ GitHub failed: …`, and health problems
+(a source failing 3× in a row, an ingestion stall) are posted once.
+
+**2. Team links** (`DISCORD_LINKS_CHANNEL_ID`). Post any link (paper, repo, X post, article) and get:
+
+```
+📄 LoD-Loc v4: Towards Generalized Aerial Visual Localization… · relevance 0.85
+• What: An aerial visual localization method that registers a query image against a Panoptic LoD 3D map.
+• Why Auki: Visual positioning against a shared 3D map is the relocalization problem the posemesh solves.
+• Topics: slam-spatial-mapping, perception · Who: Shuaibang Peng, Chengming Zhang, Juelin Zhu et al.
+• Related: Beyond Local Refinement: Wide-Area Precise…, PGGT-Loc: Primitive-Grounded Geometry…
+```
+
+Papers or repos the link points to are ingested and linked too. Anything else, such as questions or
+digests, is done by talking to the database through an LLM (below).
 
 ## Example questions with real answers
 
@@ -160,7 +182,7 @@ Assumes roughly 250 new items/day (~7.5k/month) after dedupe.
 |---|---|---|
 | Enrichment (Claude Haiku 5.5) | measured $0.0007/item on the eval run | ~$5 |
 | Embeddings | local bge-small on CPU (~25 ms/item) | $0 |
-| `/ask` + weekly digest | 2 LLM calls per question | <$1 |
+| Questions via MCP | the client's LLM does the reasoning; Scout only runs search | $0 |
 | X API v2 (pay-per-use) | 5 seeded accounts + 2 queries, 3 runs/day, ≤20 new posts each, incremental via `since_id` | ≤ 12.6k post reads/month at the cap (usually far fewer) × X's current per-read price |
 | Postgres | local docker (hosted later: Supabase/Neon free tiers cover months) | $0 |
 | Bot + MCP host | local for the demo (hosted: a ~$5 container) | $0 |
@@ -232,8 +254,9 @@ The full reasoning is in [DECISIONS.md](DECISIONS.md). The highlights:
 3. **Watch questions**: standing queries ("anything beating our relocalization latency?") that fire alerts with
    an LLM judge instead of a threshold.
 4. **Full-text RAG over PDFs** with section-level chunks, for questions like "which method did they compare against?".
-5. **Feedback that learns**: use 👍/👎 to fine-tune the relevance rubric automatically (propose edits to
-   `auki_context.md` for human approval).
+5. **Feedback loop**: 👍/👎 on feed items to tune ranking and propose edits to `auki_context.md` (removed
+   from v1 to keep the bot focused).
+6. **Weekly digest + draft posts** in Auki's voice for human approval (also cut from v1 for focus).
 
 ## Repo map
 
@@ -246,8 +269,7 @@ src/scout/
   providers/       llm (anthropic | openai | fake), embeddings (openai | fake)
   search.py        hybrid search, related, author profiles, trending, digest, /ask
   mcp_server.py    7 MCP tools, stdio + HTTP with bearer auth
-  bot/             Discord bot
-  digest.py        weekly digest + draft posts
+  bot/             Discord bot: monitor loop + feed + link replies
   health.py        health checks
 evals/             labelled data + harness + results
 tests/             connector tests (recorded fixtures), pipeline, search

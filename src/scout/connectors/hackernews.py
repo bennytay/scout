@@ -27,6 +27,7 @@ class HackerNewsConnector(Connector):
     async def fetch(self, http, kind, value, since):
         r = await http.get(API, params={
             "query": value, "tags": "story", "hitsPerPage": 50,
+            "typoTolerance": "false", "restrictSearchableAttributes": "title,url",  # "robot" != "Robert"
             "numericFilters": f"created_at_i>{int(since.timestamp())},points>=15",
         })
         r.raise_for_status()

@@ -1,6 +1,6 @@
-.PHONY: setup db migrate test eval bot mcp mcp-http ingest scheduler up
+.PHONY: setup db migrate test eval bot mcp mcp-http ingest demo
 
-setup: db           ## one command: local Postgres, deps, schema, a week of data
+setup: db           ## local Postgres, deps, schema, a week of data (quiet: no Discord posts)
 	uv sync
 	@test -f .env || cp .env.example .env
 	@sleep 3
@@ -31,9 +31,7 @@ mcp:
 mcp-http:
 	uv run scout mcp --http
 
-scheduler:
-	uv run scout scheduler
-
-up: db              ## the full local system: scheduler + Discord bot (MCP runs from your LLM client)
-	uv run scout migrate
-	uv run scout scheduler & uv run scout bot
+demo: db            ## separate fresh database, then the bot fills the Discord feed live from every source
+	docker compose exec -T db psql -U scout -d postgres -qc "drop database if exists scout_demo with (force)" -c "create database scout_demo"
+	DATABASE_URL=postgresql://scout:scout@localhost:54329/scout_demo LOOKBACK_DAYS=1 uv run scout migrate
+	DATABASE_URL=postgresql://scout:scout@localhost:54329/scout_demo LOOKBACK_DAYS=1 uv run scout bot

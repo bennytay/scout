@@ -50,11 +50,6 @@ async def _main(a) -> int:
                 print(f"[{x['n']}] {x['title']} {x['url']}")
         elif a.cmd == "trending":
             _print(await search.trending(a.topic, a.days))
-        elif a.cmd == "digest":
-            from . import digest
-
-            r = await digest.weekly(a.days, save_drafts=not a.dry_run)
-            print(r["digest"] + "\n\nDRAFTS:\n" + "\n---\n".join(d["body"] for d in r["drafts"]))
         elif a.cmd == "health":
             problems = await health.problems()
             print("\n".join(problems) or "healthy")
@@ -128,9 +123,6 @@ def main() -> None:
     tr = sub.add_parser("trending")
     tr.add_argument("--topic")
     tr.add_argument("--days", type=int, default=7)
-    dg = sub.add_parser("digest")
-    dg.add_argument("--days", type=int, default=7)
-    dg.add_argument("--dry-run", action="store_true")
     h = sub.add_parser("health")
     h.add_argument("--notify", action="store_true", help="post problems to DISCORD_ALERTS_WEBHOOK_URL")
     sub.add_parser("enrich-retry", help="re-run enrichment for items where it failed")
@@ -138,8 +130,7 @@ def main() -> None:
     re_.add_argument("--all", action="store_true")
     m = sub.add_parser("mcp", help="run the MCP server")
     m.add_argument("--http", action="store_true", help="streamable HTTP with bearer auth (default stdio)")
-    sub.add_parser("bot", help="run the Discord bot")
-    sub.add_parser("scheduler", help="run connectors on a schedule (local alternative to the GitHub cron)")
+    sub.add_parser("bot", help="run the Discord bot: monitors every source and posts the feed")
     a = p.parse_args()
 
     log.setup()
@@ -147,12 +138,6 @@ def main() -> None:
         from . import mcp_server
 
         mcp_server.run_http() if a.http else mcp_server.run_stdio()
-        return
-    if a.cmd == "scheduler":
-        from . import scheduler
-
-        asyncio.run(db.migrate())
-        asyncio.run(scheduler.loop())
         return
     if a.cmd == "bot":
         from .bot.main import run

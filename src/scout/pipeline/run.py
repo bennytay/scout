@@ -41,6 +41,7 @@ class RunStats:
     failed: int = 0
     cost: float = 0.0
     errors: list[str] = field(default_factory=list)
+    new_ids: list[int] = field(default_factory=list)
 
 
 class Pipeline:
@@ -134,6 +135,7 @@ async def run_connector(name: str, since: datetime | None = None, only_value: st
                 stats.cost += r.cost
                 if r.status == "inserted":
                     stats.inserted += 1
+                    stats.new_ids.append(r.item_id)
                 elif r.status == "duplicate":
                     stats.duplicates += 1
                 else:
@@ -145,7 +147,8 @@ async def run_connector(name: str, since: datetime | None = None, only_value: st
         status, stats.fetched, stats.inserted, stats.duplicates, stats.failed, round(stats.cost, 6),
         "\n".join(stats.errors)[:2000] or None, run["id"],
     )
-    log.info("connector.done", connector=name, status=status, **{k: v for k, v in stats.__dict__.items() if k != "errors"})
+    log.info("connector.done", connector=name, status=status, fetched=stats.fetched, inserted=stats.inserted,
+             duplicates=stats.duplicates, failed=stats.failed, cost=round(stats.cost, 5))
     return stats
 
 

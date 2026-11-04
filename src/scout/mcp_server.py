@@ -42,7 +42,7 @@ async def search(query: str | None = None, author: str | None = None, org: str |
 
 @mcp.tool()
 async def get_item(id: int) -> dict:
-    """Full detail for one item: summary, authors, orgs, topics, entities, metrics, feedback, related items."""
+    """Full detail for one item: summary, authors, orgs, topics, entities, metrics, related items."""
     return await s.get_item(id) or {"error": f"no item {id}"}
 
 
@@ -60,7 +60,7 @@ async def author_profile(name: str) -> dict:
 
 @mcp.tool()
 async def trending(topic: str | None = None, days: int = 7, limit: int = 10) -> list[dict]:
-    """What's getting attention: cross-source sightings, upvotes/stars/points, team 👍, Auki relevance."""
+    """What's getting attention: cross-source sightings, upvotes/stars/points/likes, Auki relevance."""
     return await s.trending(topic, days, limit)
 
 

@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,13 +26,12 @@ class Settings(BaseSettings):
     x_max_results: int = 20                 # per tracked source per run (10-100); caps credit spend
     hf_token: str | None = None
 
-    # Discord
+    # Discord: the bot watches one links channel and posts the monitoring feed to another
     discord_token: str | None = None
     discord_links_channel_id: int | None = None
-    discord_alerts_channel_id: int | None = None
-    discord_digest_channel_id: int | None = None   # defaults to alerts channel
-    discord_guild_id: int | None = None            # set for instant slash-command sync
-    discord_alerts_webhook_url: str | None = None  # lets cron jobs post health alerts without the bot
+    discord_feed_channel_id: int | None = Field(
+        None, validation_alias=AliasChoices("discord_feed_channel_id", "discord_alerts_channel_id"))
+    discord_alerts_webhook_url: str | None = None  # lets a cron job post health problems without the bot
 
     # MCP over HTTP
     mcp_bearer_token: str | None = None
@@ -40,7 +40,7 @@ class Settings(BaseSettings):
 
     # Behaviour
     dedupe_similarity: float = 0.92
-    alert_min_relevance: float = 0.75
+    alert_min_relevance: float = 0.75   # 🔥 highlight + reason line in the feed
     max_items_per_source: int = 100
     lookback_days: int = 2
 

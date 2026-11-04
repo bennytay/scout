@@ -29,7 +29,7 @@ insert into sources (kind, value, added_by) values
   ('hf_feed',        'datasets:lerobot', 'seed'),
   ('hn_query',       'robot', 'seed'),
   ('hn_query',       'humanoid', 'seed'),
-  ('hn_query',       'SLAM', 'seed'),
+  ('hn_query',       'robotics', 'seed'),
   ('alphaxiv',       'robotics', 'seed'),
   ('rss',            'https://spectrum.ieee.org/feeds/topic/robotics.rss', 'seed'),
   ('rss',            'https://www.therobotreport.com/feed/', 'seed'),
