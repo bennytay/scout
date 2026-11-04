@@ -128,14 +128,25 @@ A hand-labelled set: **56 recent real arXiv papers** (topics + Auki-relevance ba
 + 5 author queries** with relevant sets (`evals/*.jsonl`). `make eval` loads them into a throwaway DB through
 the real pipeline and scores them.
 
-| Metric | Heuristic tagging + local embeddings | Claude Haiku 5.5 + local embeddings |
+| Metric | Keyword heuristic (no LLM) | **Claude Haiku 5.5** |
 |---|---|---|
-| Topic: primary topic correct | 46% | _run `make eval` with keys_ |
-| Topic: micro-F1 over topic sets | 50% | |
-| Auki relevance: band accuracy (high/mid/low) | 38% | |
-| Search: precision@5 (capped at #relevant) | 0.85 | |
-| Search: MRR | 1.00 | |
-| Author filter: precision / recall | 87% / 100% | |
+| Topic: primary topic correct | 46% | **91%** |
+| Topic: any expected topic predicted | 70% | **96%** |
+| Topic: micro-F1 over topic sets | 50% | **77%** (P 68%, R 89%) |
+| Auki relevance: band accuracy (high/mid/low) | 38% | **75%** |
+| Search: precision@5 (capped at #relevant) | 0.85 | **0.87** |
+| Search: MRR / hit@1 | 1.00 / 1.00 | 0.98 / 0.95 |
+| Author filter: precision / recall | 87% / 100% | 87% / 100% |
+| Enrichment cost for 56 items | $0 | **$0.038** (~$0.0007/item) |
+
+Both columns use the same local embedder (bge-small), so search differs only through the LLM's summaries.
+
+**What the errors look like.** Every relevance miss is off by one band, and none confuse *high* with *low*.
+The model is generous: 8 of the 15 papers I labelled *low* (peripheral robotics, e.g. a robot-tutoring HRI study)
+got 0.40–0.50, just over the *mid* cut-off. Topic precision (68%) is lower than recall (89%) because the model
+often adds a reasonable second or third topic that the labels don't have. I deliberately did **not** tune the
+prompt against these 56 items, since that would be fitting to the test set. The fix is more labelled data and
+a held-out split.
 
 Full breakdown, confusion matrix and per-query scores: [`evals/results.md`](evals/results.md).
 Search is measured with the real local embedder (no LLM involved). The tagging and relevance column needs
@@ -147,7 +158,7 @@ Assumes roughly 250 new items/day (~7.5k/month) after dedupe.
 
 | | Assumption | $/month |
 |---|---|---|
-| Enrichment (Claude Haiku 5.5) | ~1.8k input + ~650 output tokens/item | ~$4 |
+| Enrichment (Claude Haiku 5.5) | measured $0.0007/item on the eval run | ~$5 |
 | Embeddings | local bge-small on CPU (~25 ms/item) | $0 |
 | `/ask` + weekly digest | 2 LLM calls per question | <$1 |
 | X API v2 (pay-per-use) | 5 seeded accounts + 2 queries, 3 runs/day, ≤20 new posts each, incremental via `since_id` | ≤ 12.6k post reads/month at the cap (usually far fewer) × X's current per-read price |
