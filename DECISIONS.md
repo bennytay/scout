@@ -2,7 +2,7 @@
 
 Short records of the non-obvious choices, and why. Newest last.
 
-### D1. Plain Postgres access (psycopg) instead of supabase-py
+### D1. Plain Postgres access (psycopg), no Supabase client
 Supabase is "just Postgres". Talking SQL directly means the same code runs against local docker (tests, CI,
 evals) and Supabase, and the hybrid search can live in one SQL function. Migrations are plain `.sql` files
 applied in order by `scout migrate` (tracked in `schema_migrations`). No ORM.
@@ -85,3 +85,21 @@ guard for search. The README reports both the heuristic baseline and the real-pr
 The official Python SDK renamed FastMCP to `MCPServer` in 2.x. HTTP uses the SDK's streamable-HTTP app wrapped
 in a bearer-token middleware (simplest auth that works with any client). DNS-rebinding protection is turned
 off because it targets browser→localhost attacks, and this is a token-protected remote service.
+
+### D16. Run locally, Claude only (supersedes parts of D1, D7, D9, D11)
+For the demo the whole system runs on one laptop: Postgres in docker, the scheduler instead of the Actions
+cron, and the bot and MCP on stdio. Supabase is unnecessary. The code still targets any Postgres, so hosting is
+a `DATABASE_URL` change. Claude is the only paid model provider.
+
+### D17. Local embeddings (fastembed, bge-small-en-v1.5, 384-d)
+Claude has no embeddings endpoint, and "Claude only" rules out OpenAI. bge-small via ONNX on CPU is free, needs
+no key, embeds ~40 docs/s, and scored **P@5 0.85** on the eval set (vs 0.72 for the hash baseline). Queries use
+bge's retrieval instruction prefix (`query_embed`). The provider stays swappable: `EMBEDDING_PROVIDER=openai`
+requests 384 dimensions so the schema doesn't change. Migration 005 resized the column and `scout reembed`
+rebuilds vectors after a switch.
+
+### D18. Official X API v2 replaces xAI/Grok (supersedes D9's monitoring path)
+With pay-per-use credits, the official API is the most direct source. Cost controls are built in: a stored
+`since_id` per source (only new posts are read), a cached user id (no repeat lookups), `X_MAX_RESULTS` per
+source, search restricted to `has:links -is:retweet -is:reply lang:en`, and X runs 3×/day versus 6×/day for
+the free sources. Shared links still go to the free fxtwitter endpoint first, and the API is the fallback.

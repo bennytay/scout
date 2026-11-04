@@ -2,7 +2,7 @@
   "summary": {
     "date": "2026-11-05",
     "llm": "fake (keyword heuristic baseline)",
-    "embeddings": "fake (hashed BoW)",
+    "embeddings": "local:BAAI/bge-small-en-v1.5",
     "n_items": 56,
     "n_queries": 21,
     "failed": 0,
@@ -35,8 +35,8 @@
       }
     },
     "search": {
-      "p@5": 0.72,
-      "r@5": 0.72,
+      "p@5": 0.847,
+      "r@5": 0.847,
       "mrr": 1.0,
       "hit@1": 1.0
     },
@@ -48,29 +48,29 @@
   "queries": [
     {
       "query": "visual relocalization in changing environments",
-      "p@5": 0.2,
-      "r@5": 0.2,
+      "p@5": 0.8,
+      "r@5": 0.8,
       "rr": 1.0,
       "hit@1": true
     },
     {
       "query": "3D scene graphs as long-term robot memory",
-      "p@5": 0.75,
-      "r@5": 0.75,
+      "p@5": 1.0,
+      "r@5": 1.0,
       "rr": 1.0,
       "hit@1": true
     },
     {
       "query": "humanoid loco-manipulation",
-      "p@5": 0.6666666666666666,
-      "r@5": 0.6666666666666666,
+      "p@5": 1.0,
+      "r@5": 1.0,
       "rr": 1.0,
       "hit@1": true
     },
     {
       "query": "world action models that predict video and actions",
-      "p@5": 0.6,
-      "r@5": 0.6,
+      "p@5": 0.8,
+      "r@5": 0.8,
       "rr": 1.0,
       "hit@1": true
     },
@@ -83,22 +83,22 @@
     },
     {
       "query": "coordinating multiple robots",
-      "p@5": 0.4,
-      "r@5": 0.4,
+      "p@5": 0.6,
+      "r@5": 0.6,
       "rr": 1.0,
       "hit@1": true
     },
     {
       "query": "dexterous robot hands",
-      "p@5": 0.5,
-      "r@5": 0.5,
+      "p@5": 1.0,
+      "r@5": 1.0,
       "rr": 1.0,
       "hit@1": true
     },
     {
       "query": "learning manipulation from human videos",
-      "p@5": 0.75,
-      "r@5": 0.75,
+      "p@5": 1.0,
+      "r@5": 1.0,
       "rr": 1.0,
       "hit@1": true
     },
@@ -111,8 +111,8 @@
     },
     {
       "query": "structure from motion reconstruction",
-      "p@5": 1.0,
-      "r@5": 1.0,
+      "p@5": 0.5,
+      "r@5": 0.5,
       "rr": 1.0,
       "hit@1": true
     },
@@ -125,8 +125,8 @@
     },
     {
       "query": "teleoperation and demonstration data collection",
-      "p@5": 0.6666666666666666,
-      "r@5": 0.6666666666666666,
+      "p@5": 1.0,
+      "r@5": 1.0,
       "rr": 1.0,
       "hit@1": true
     },
@@ -146,15 +146,15 @@
     },
     {
       "query": "feature matching for SLAM and visual localization",
-      "p@5": 0.5,
-      "r@5": 0.5,
+      "p@5": 1.0,
+      "r@5": 1.0,
       "rr": 1.0,
       "hit@1": true
     },
     {
       "query": "autonomous driving",
-      "p@5": 0.3333333333333333,
-      "r@5": 0.3333333333333333,
+      "p@5": 0.6666666666666666,
+      "r@5": 0.6666666666666666,
       "rr": 1.0,
       "hit@1": true
     },
@@ -188,8 +188,8 @@
     },
     {
       "query": "data-efficient imitation learning",
-      "p@5": 1.0,
-      "r@5": 1.0,
+      "p@5": 0.6666666666666666,
+      "r@5": 0.6666666666666666,
       "rr": 1.0,
       "hit@1": true
     }

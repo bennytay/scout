@@ -2,7 +2,7 @@ name: ingest
 on:
   schedule:
     - cron: "17 */4 * * *"      # every 4h: arxiv, github, huggingface, hackernews, alphaxiv, rss
-    - cron: "47 7,13,19 * * *"  # 3x/day: x (xAI calls cost money)
+    - cron: "47 7,13,19 * * *"  # 3x/day: x (API reads cost credits)
   workflow_dispatch:
     inputs:
       days: {description: "look-back days (backfill)", required: false, default: ""}
@@ -10,8 +10,7 @@ concurrency: {group: ingest, cancel-in-progress: false}
 env:
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-  XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+  X_BEARER_TOKEN: ${{ secrets.X_BEARER_TOKEN }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   HF_TOKEN: ${{ secrets.HF_TOKEN }}
   DISCORD_ALERTS_WEBHOOK_URL: ${{ secrets.DISCORD_ALERTS_WEBHOOK_URL }}

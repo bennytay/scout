@@ -13,7 +13,7 @@ flowchart LR
     A[arXiv cs.RO + filtered cs.CV/LG]
     G[GitHub orgs / releases / search]
     H[HF daily papers / models / datasets]
-    X[X via Grok x_search]
+    X[X API v2 accounts + search]
     N[Hacker News]
     AX[alphaXiv hot]
     R[RSS]
@@ -22,9 +22,9 @@ flowchart LR
   subgraph Pipeline
     C[canonicalise URL] --> DD[dedupe: url → arXiv id → DOI → embedding]
     DD --> E[enrich: LLM structured output<br/>summary · topics · authors/orgs · entities · Auki relevance]
-    E --> EM[embed] --> U[upsert + sightings] --> L[link paper ↔ repo ↔ post]
+    E --> EM[embed locally<br/>bge-small, CPU] --> U[upsert + sightings] --> L[link paper ↔ repo ↔ post]
   end
-  A & G & H & X & N & AX & R -->|GitHub Actions cron| C
+  A & G & H & X & N & AX & R -->|scheduler / cron| C
   D -->|priority| C
   U --> PG[(Postgres<br/>pgvector + pg_trgm + tsvector)]
   PG --> S[hybrid search<br/>RRF of FTS + vector + fuzzy names]
@@ -35,9 +35,12 @@ flowchart LR
 
 ## Quick start (one command)
 
+Runs entirely on your machine: Postgres in docker, embeddings on CPU, Claude for enrichment.
+
 ```bash
-cp .env.example .env   # add ANTHROPIC_API_KEY + OPENAI_API_KEY (everything else optional)
+cp .env.example .env   # add ANTHROPIC_API_KEY (X_BEARER_TOKEN, GITHUB_TOKEN, DISCORD_* optional)
 make setup             # local Postgres (docker), deps, schema, 7-day backfill
+make up                # scheduler (keeps ingesting) + Discord bot
 ```
 
 No keys yet? `LLM_PROVIDER=fake EMBEDDING_PROVIDER=fake make setup` runs the whole system offline with
@@ -53,8 +56,9 @@ make bot                                                # Discord bot
 make mcp                                                # MCP over stdio
 ```
 
-To use **Supabase** instead of local Postgres, set `DATABASE_URL` to the project's session-pooler URI and run
-`uv run scout migrate`. pgvector and pg_trgm are enabled by the migration.
+**Hosting later?** Any Postgres with pgvector works. Point `DATABASE_URL` at Supabase/Neon/RDS and run
+`uv run scout migrate`. `.github/workflows/ingest.yml` is the hosted replacement for `scout scheduler`, and the
+Dockerfile runs the bot and the MCP HTTP server together.
 
 ## Use it from an LLM client (MCP)
 
@@ -124,17 +128,18 @@ A hand-labelled set: **56 recent real arXiv papers** (topics + Auki-relevance ba
 + 5 author queries** with relevant sets (`evals/*.jsonl`). `make eval` loads them into a throwaway DB through
 the real pipeline and scores them.
 
-| Metric | Heuristic baseline (no LLM) | Claude Haiku 5.5 + text-embedding-3-small |
+| Metric | Heuristic tagging + local embeddings | Claude Haiku 5.5 + local embeddings |
 |---|---|---|
 | Topic: primary topic correct | 46% | _run `make eval` with keys_ |
 | Topic: micro-F1 over topic sets | 50% | |
 | Auki relevance: band accuracy (high/mid/low) | 38% | |
-| Search: precision@5 (capped at #relevant) | 0.72 | |
+| Search: precision@5 (capped at #relevant) | 0.85 | |
 | Search: MRR | 1.00 | |
 | Author filter: precision / recall | 87% / 100% | |
 
 Full breakdown, confusion matrix and per-query scores: [`evals/results.md`](evals/results.md).
-The baseline runs in CI as a regression guard for search ranking.
+Search is measured with the real local embedder (no LLM involved). The tagging and relevance column needs
+`ANTHROPIC_API_KEY`. CI runs a fully offline variant (hash embeddings, P@5 0.72) as a regression guard.
 
 ## Cost estimate (monthly)
 
@@ -143,13 +148,13 @@ Assumes roughly 250 new items/day (~7.5k/month) after dedupe.
 | | Assumption | $/month |
 |---|---|---|
 | Enrichment (Claude Haiku 5.5) | ~1.8k input + ~650 output tokens/item | ~$4 |
-| Embeddings (text-embedding-3-small) | ~500 tokens/item, plus queries | <$0.10 |
+| Embeddings | local bge-small on CPU (~25 ms/item) | $0 |
 | `/ask` + weekly digest | 2 LLM calls per question | <$1 |
-| X monitoring (xAI Grok + x_search) | ~25 sources × 3/day | ~$10–15 (estimate; check console.x.ai pricing) |
-| Postgres | Supabase free tier (500 MB) covers ~3 months; then Pro | $0 → $25 |
-| Bot + MCP host | Railway/Fly small instance | ~$5 |
+| X API v2 (pay-per-use) | 5 seeded accounts + 2 queries, 3 runs/day, ≤20 new posts each, incremental via `since_id` | ≤ 12.6k post reads/month at the cap (usually far fewer) × X's current per-read price |
+| Postgres | local docker (hosted later: Supabase/Neon free tiers cover months) | $0 |
+| Bot + MCP host | local for the demo (hosted: a ~$5 container) | $0 |
 | Cron | GitHub Actions, public repo | $0 |
-| **Total** | | **~$10/mo without X, ~$25 with X; ~$50 once on Supabase Pro** |
+| **Total** | | **~$5/mo of Claude + your X credits** |
 
 Real per-item cost is recorded in `items.cost_usd` and per run in `ingest_runs.cost_usd`. The bot shows the
 cost of each ingestion in its reply.
@@ -195,8 +200,8 @@ The full reasoning is in [DECISIONS.md](DECISIONS.md). The highlights:
 
 ## Known limits
 
-- **X monitoring needs an xAI key**, and its request shape is tested against a synthetic fixture until verified
-  with a live key. X links shared in Discord work without any key.
+- **X monitoring needs X API credits.** The connector is tested against a synthetic fixture in the documented v2
+  response format until a recorded response replaces it. X links shared in Discord work without any key.
 - **alphaXiv** uses an unofficial API and may break. It fails soft.
 - **Author disambiguation is name-based** (normalised and fuzzy). Two "Wei Zhang"s collapse into one; ORCID or
   Semantic Scholar IDs would fix this.
