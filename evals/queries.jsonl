@@ -1,0 +1,21 @@
+{"query": "visual relocalization in changing environments", "relevant_arxiv_ids": ["2611.05084", "2611.03098", "2611.00704", "2611.05172", "2611.03932"]}
+{"query": "3D scene graphs as long-term robot memory", "relevant_arxiv_ids": ["2610.07569", "2609.33258", "2609.31005", "2610.27104"]}
+{"query": "humanoid loco-manipulation", "relevant_arxiv_ids": ["2611.05113", "2611.04839", "2611.04255"]}
+{"query": "world action models that predict video and actions", "relevant_arxiv_ids": ["2611.05023", "2611.04711", "2611.04527", "2611.04870", "2611.04873"]}
+{"query": "making VLA inference faster and smaller", "relevant_arxiv_ids": ["2611.05093", "2611.05155"]}
+{"query": "coordinating multiple robots", "relevant_arxiv_ids": ["2611.05074", "2611.05027", "2611.04518", "2611.05244", "2611.04957"]}
+{"query": "dexterous robot hands", "relevant_arxiv_ids": ["2611.05302", "2611.05119", "2610.12470", "2611.05163"]}
+{"query": "learning manipulation from human videos", "relevant_arxiv_ids": ["2611.05163", "2611.04522", "2610.12470", "2611.05377"]}
+{"query": "localization against a floor plan", "relevant_arxiv_ids": ["2611.05172"]}
+{"query": "structure from motion reconstruction", "relevant_arxiv_ids": ["2611.02857", "2611.05361"]}
+{"query": "benchmarks for robot learning", "relevant_arxiv_ids": ["2611.05080", "2611.05093", "2611.05361", "2611.04755"]}
+{"query": "teleoperation and demonstration data collection", "relevant_arxiv_ids": ["2611.05368", "2611.05320", "2611.05074"]}
+{"query": "safe navigation for legged robots", "relevant_arxiv_ids": ["2611.04972"]}
+{"query": "swarm robots reality gap", "relevant_arxiv_ids": ["2611.05244"]}
+{"query": "feature matching for SLAM and visual localization", "relevant_arxiv_ids": ["2611.03932", "2611.03098"]}
+{"query": "autonomous driving", "relevant_arxiv_ids": ["2611.05072", "2611.04871", "2611.04957"]}
+{"query": "tendon-driven hand actuation", "relevant_arxiv_ids": ["2611.05302"]}
+{"query": "inverse kinematics for robot arms", "relevant_arxiv_ids": ["2611.05372"]}
+{"query": "aerial localization with 3D city maps", "relevant_arxiv_ids": ["2611.00704"]}
+{"query": "underwater vehicle missions", "relevant_arxiv_ids": ["2611.04518"]}
+{"query": "data-efficient imitation learning", "relevant_arxiv_ids": ["2611.05368", "2610.12470", "2611.05320"]}
