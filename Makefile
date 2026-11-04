@@ -1,4 +1,4 @@
-.PHONY: setup db migrate seed test eval bot mcp mcp-http ingest
+.PHONY: setup db migrate test eval bot mcp mcp-http ingest scheduler up
 
 setup: db           ## one command: local Postgres, deps, schema, a week of data
 	uv sync
@@ -30,3 +30,10 @@ mcp:
 
 mcp-http:
 	uv run scout mcp --http
+
+scheduler:
+	uv run scout scheduler
+
+up: db              ## the full local system: scheduler + Discord bot (MCP runs from your LLM client)
+	uv run scout migrate
+	uv run scout scheduler & uv run scout bot

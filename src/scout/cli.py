@@ -139,6 +139,7 @@ def main() -> None:
     m = sub.add_parser("mcp", help="run the MCP server")
     m.add_argument("--http", action="store_true", help="streamable HTTP with bearer auth (default stdio)")
     sub.add_parser("bot", help="run the Discord bot")
+    sub.add_parser("scheduler", help="run connectors on a schedule (local alternative to the GitHub cron)")
     a = p.parse_args()
 
     log.setup()
@@ -146,6 +147,12 @@ def main() -> None:
         from . import mcp_server
 
         mcp_server.run_http() if a.http else mcp_server.run_stdio()
+        return
+    if a.cmd == "scheduler":
+        from . import scheduler
+
+        asyncio.run(db.migrate())
+        asyncio.run(scheduler.loop())
         return
     if a.cmd == "bot":
         from .bot.main import run
