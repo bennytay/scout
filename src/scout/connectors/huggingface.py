@@ -31,7 +31,9 @@ def hub_item(x: dict, kind: str) -> Item:
         url=url, type=ItemType.dataset if kind == "datasets" else ItemType.model, title=rid,
         summary=(x.get("cardData") or {}).get("description") if isinstance(x.get("cardData"), dict) else None,
         published_at=_dt(x.get("createdAt")), source="huggingface", source_ref=f"{kind}:{rid}",
-        orgs=[rid.split("/")[0]] if "/" in rid else [],
+        # The owner may be an individual (e.g. "lyl472324464"), so it is a handle, not an org.
+        # Real orgs are extracted by the enrichment LLM from the model card.
+        author_handles={"hf": rid.split("/")[0]} if "/" in rid else {},
         metrics={"hf_likes": x.get("likes", 0), "hf_downloads": x.get("downloads", 0)},
     )
 

@@ -122,3 +122,18 @@ async def test_resolve_github_repo():
         item = await resolve(http, "https://github.com/huggingface/lerobot/tree/main")
     assert item.type == "repo" and item.metrics["gh_stars"] > 1000
     assert "https://arxiv.org/abs/2602.22818" in item.outlinks
+
+
+def test_post_title_is_readable():
+    from scout.connectors.x import post_title
+
+    t = post_title("🚨 BREAKING:\n\nFigure's humanoid folds laundry for 8 hours straight https://t.co/x", "someone")
+    assert t == "@someone: 🚨 BREAKING: Figure's humanoid folds laundry for 8 hours straight"
+    assert post_title("word " * 60, "a").endswith("…") and len(post_title("word " * 60, "a")) < 140
+
+
+def test_hf_owner_is_a_handle_not_an_org():
+    from scout.connectors.huggingface import hub_item
+
+    i = hub_item({"id": "lyl472324464/so100_pick", "likes": 3}, "datasets")
+    assert i.orgs == [] and i.author_handles == {"hf": "lyl472324464"}

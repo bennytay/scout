@@ -11,7 +11,7 @@ from ..models import TOPICS, Enrichment, Item
 
 ORG_ALIASES = {  # small hand-curated map; extend as needed
     "deepmind": "Google DeepMind", "google deepmind": "Google DeepMind", "nvidia research": "NVIDIA",
-    "nvidia corporation": "NVIDIA", "meta ai": "Meta", "fair": "Meta", "facebook ai research": "Meta",
+    "nvidia corporation": "NVIDIA", "nvidia-omniverse": "NVIDIA", "nvidia omniverse": "NVIDIA", "meta ai": "Meta", "fair": "Meta", "facebook ai research": "Meta",
     "meta fair": "Meta", "pi": "Physical Intelligence", "physical-intelligence": "Physical Intelligence",
     "tri": "Toyota Research Institute", "mit": "MIT", "massachusetts institute of technology": "MIT",
     "cmu": "Carnegie Mellon University", "uc berkeley": "UC Berkeley", "berkeley": "UC Berkeley",

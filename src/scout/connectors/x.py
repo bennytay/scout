@@ -24,6 +24,14 @@ def _headers() -> dict:
     return {"Authorization": f"Bearer {settings().x_bearer_token}"}
 
 
+def post_title(text: str, handle: str) -> str:
+    """Readable title from a post: whole text, links stripped, whitespace collapsed, cut at a word."""
+    t = " ".join(re.sub(r"https?://\S+", "", text).split())
+    if len(t) > 120:
+        t = t[:120].rsplit(" ", 1)[0] + "…"
+    return f"@{handle}: {t}" if t else f"Post by @{handle}"
+
+
 def tweet_item(t: dict, users: dict[str, dict], source: str = "x", source_ref: str | None = None) -> Item:
     user = users.get(t.get("author_id"), {})
     handle = user.get("username") or "i"
@@ -33,7 +41,7 @@ def tweet_item(t: dict, users: dict[str, dict], source: str = "x", source_ref: s
     links = [u for u in links if u and not re.match(r"https?://(x|twitter)\.com/.+/(photo|video)/", u)]
     return Item(
         url=f"https://x.com/{handle}/status/{t['id']}", type=ItemType.post,
-        title=(text.split("\n")[0][:140] or f"Post by @{handle}"), summary=text, full_text=text,
+        title=post_title(text, handle), summary=text, full_text=text,
         published_at=datetime.fromisoformat(t["created_at"].replace("Z", "+00:00")) if t.get("created_at") else None,
         source=source, source_ref=source_ref or t["id"],
         authors=[user.get("name") or handle], author_handles={"x": handle},
