@@ -1,0 +1,182 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/pGypzXXge+/mai2CMMu2nt9fiB4</id>
+  <title>arXiv Query: search_query=cat:cs.RO&amp;id_list=&amp;start=0&amp;max_results=5</title>
+  <updated>2026-11-04T12:43:57Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=cat:cs.RO&amp;start=0&amp;max_results=5&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>5</opensearch:itemsPerPage>
+  <opensearch:totalResults>62074</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2611.05377v1</id>
+    <title>DreamX: Video Diffusion Model is a Universal Latent Action Learner</title>
+    <updated>2026-11-03T18:59:56Z</updated>
+    <link href="https://arxiv.org/abs/2611.05377v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.05377v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Learning a universal action representation from video requires modeling dynamics that are consistent across different executions of the same action yet invariant to changes in embodiment and appearance. Existing latent action models infer actions from visual transitions, but their representations often entangle the underlying action with irrelevant visual variations, limiting transfer across embodiments. We introduce DreamX, which repurposes a pretrained video diffusion model as a universal latent action learner. Our approach extracts compact latent actions from the video model's rich spatiotemporal features, compressing each latent video frame by $\boldsymbol{300\times}$ ($\boldsymbol{1{,}200 \rightarrow 4}$ tokens). In addition, by leveraging the video model's generative prior, these latent actions capture action-relevant dynamics disentangled from visual appearance. The resulting latent space serves as a shared action interface across embodiments (human and robot), environments, and action parameterizations. On LARY-Bench, DreamX achieves state-of-the-art performance among latent action models. Moreover, actions encoded in one setting remain effective in another: the latent space supports any-to-any video transfer and zero-shot action transfer across diverse embodiments and environments. Furthermore, this shared interface also enables policy learning in a compact latent action space, reducing the computational cost of video-diffusion-based policies.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-03T18:59:56Z</published>
+    <arxiv:comment>Project Page: https://cvlab-kaist.github.io/DreamX/</arxiv:comment>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Jisoo Kim</name>
+    </author>
+    <author>
+      <name>Chaehyun Kim</name>
+    </author>
+    <author>
+      <name>Junsu Kim</name>
+    </author>
+    <author>
+      <name>Jiho Park</name>
+    </author>
+    <author>
+      <name>Seongchan Kim</name>
+    </author>
+    <author>
+      <name>Eunbeen Hong</name>
+    </author>
+    <author>
+      <name>Soowon Son</name>
+    </author>
+    <author>
+      <name>Fu-En Yang</name>
+    </author>
+    <author>
+      <name>Seungryong Kim</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.05372v1</id>
+    <title>PolicyIK: High-Precision Inverse Kinematics for Robot Arms with Reinforcement Learning</title>
+    <updated>2026-11-03T18:59:14Z</updated>
+    <link href="https://arxiv.org/abs/2611.05372v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.05372v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Inverse kinematics (IK) converts end-effector pose commands into joint motion, and many vision-language-action (VLA) policies rely on it to act on a given arm and to transfer across embodiments. Precise IK remains laborious: redundancy and singularities complicate the inverse mapping, execution depends on hand-tuned controllers, and training data on physical robots are costly to collect. We present PolicyIK, a goal-conditioned reinforcement learning policy for high-precision IK. It updates joint-position references from pose feedback and observes its accumulated reference relative to the measured joints, so it can retain the offset that the position controller needs at rest. Two-scale pose errors with an error-dependent action gain resolve millimeter residuals while preserving large motions. Progress and dwell rewards teach it to both reach the tolerance and stay within it. In simulation, a single attempt by the trained PPO policy keeps the mean errors over the final second within 1 mm and 0.2° on 93.5% of held-out tasks, and a deployment protocol raises success to 98.9%. When trained directly on a physical arm with an off-policy RL learner, PolicyIK achieves higher reaching and holding success than all four classical IK controllers under the same time budgets. In simulated pick-and-place, PolicyIK executes the end-effector commands of the $π_{0.5}$ VLA policy with 95.7% success. These results show that reinforcement learning can provide high-precision inverse kinematics for robot arms. Code is available at https://github.com/Tinaliu0123/PolicyIK.</summary>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-03T18:59:14Z</published>
+    <arxiv:primary_category term="cs.RO"/>
+    <author>
+      <name>Yuhan Liu</name>
+    </author>
+    <author>
+      <name>Xinqi Liu</name>
+    </author>
+    <author>
+      <name>Zixuan Dong</name>
+    </author>
+    <author>
+      <name>Keith W. Ross</name>
+    </author>
+    <author>
+      <name>Shenji Wan</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.05368v1</id>
+    <title>GUILD: Guided Iterative Data Collection for Imitation Learning</title>
+    <updated>2026-11-03T18:57:35Z</updated>
+    <link href="https://arxiv.org/abs/2611.05368v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.05368v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Imitation learning policies in robotics are trained on datasets collected through costly real-world teleoperation. Often, the data-collection process is unguided, relying on the teleoperator's intuition, resulting in data that contributes little to overall policy performance. Recent work has shown that curating such unguided datasets can substantially improve policy performance, but these approaches operate by filtering existing datasets after collection and therefore do not prevent the acquisition of uninformative data. In this work, we propose GUILD, a novel Guided Data Collection (GDC) method that actively reasons about which data should be collected to maximize downstream policy performance. We introduce an iterative framework that alternates between 1) task proposal and data collection and 2) data evaluation to close the loop. For task proposal, we leverage semantic priors from vision-language models to identify relevant environments, object configurations, and goals for data collection. However, since semantic relevance does not imply policy improvement, we perform data evaluation. By leveraging predictive data attribution we approximate how the collected trajectories influence policy performance on a target deployment setting. This signal is then used as feedback to guide subsequent data collection, closing the data collection loop. We evaluate our approach in simulation and real robot settings, demonstrating that guided data collection substantially improves sample efficiency and deployment performance compared to passive data collection strategies, multiple baselines and experienced roboticists. More information at https://robin-lab.cs.utexas.edu/guild2026/</summary>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-03T18:57:35Z</published>
+    <arxiv:primary_category term="cs.RO"/>
+    <author>
+      <name>Shivin Dass</name>
+    </author>
+    <author>
+      <name>Kevin Nguyen</name>
+    </author>
+    <author>
+      <name>Rohan Yelandur</name>
+    </author>
+    <author>
+      <name>Junhong Xu</name>
+    </author>
+    <author>
+      <name>Roberto Martín-Martín</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.05361v1</id>
+    <title>Visibility-Aware Reference Generation for Benchmarking Visual 3D Reconstruction in Vegetation-Rich Environments</title>
+    <updated>2026-11-03T18:54:52Z</updated>
+    <link href="https://arxiv.org/abs/2611.05361v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.05361v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Reliable evaluation of visual 3D reconstruction and depth estimation in vegetation-rich outdoor environments is limited by the scarcity of geometric ground-truth data and the cost of complete scanner surveys. We present a LiDARbased reference-generation pipeline for evaluating the zero-shot performance of feed-forward visual-geometry models alongside conventional structure-from-motion (SfM) methods. The pipeline reuses camera images, LiDAR scans, and reference poses from existing multi-sensor localization datasets to generate per-view depth maps and visible reference point clouds. To address visibility errors in accumulated LiDAR scans, we introduce the LargeDepth-Gap Visibility Score (LDGVS) for point-wise visibility filtering and automatic scale selection in Hidden Point Removal(HPR). Experiments on TartanAirV2 and TartanGround show that, compared with Poisson surface reconstruction, which is an approach suited to completed scan surveys, the combined HPR and LDGVS filtering retains approximately three times the point density at comparable absolute relative error. We also apply the pipeline to the BotanicGarden dataset to systematically compare depth estimation and 3D reconstruction methods. Feedforward methods produce dense depth predictions efficiently, but their 3D reconstructions can contain duplicated structures. Conventional SfM generally produces more coherent geometry, but its reconstructions remain sparse and more prone to failure in challenging vegetated scenes. The benchmark toolkit and datasets will be released.</summary>
+    <category term="cs.CV" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-03T18:54:52Z</published>
+    <arxiv:comment>20 pages, 12 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.CV"/>
+    <author>
+      <name>Zhipeng Zhong</name>
+    </author>
+    <author>
+      <name>Matthew Coombes</name>
+    </author>
+    <author>
+      <name>Cunjia Liu</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.05320v1</id>
+    <title>PyRUA-DataFarm: LLM Agent as a Cost-Efficient Teleoperator for Real-Ready Robot Data</title>
+    <updated>2026-11-03T18:25:14Z</updated>
+    <link href="https://arxiv.org/abs/2611.05320v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.05320v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Teleoperation remains the default way to collect robot demonstrations, but every episode costs robot and operator time, and every new task starts from scratch. We ask whether a coding agent can take over the teleoperator's job. In our DataFarm, the agent receives a data request and one calibration episode of the robot in the target scene and rebuilds the task in simulation: it writes the scene, an expert controller, and a success judge. The simulator supplies exact actions, and a video model conditioned on real images renders each rollout as photographic video, generating all camera views together consistently. The output is real-ready data: synchronized camera views labelled with the robot's actions, on which a policy can be trained directly and deployed on the real robot. Independent judges certify the expert and every rendered episode before admission. On five real-robot tasks, policies trained only on farm data match policies trained on as many teleoperated episodes (93 vs. 84 successes in 100 trials), and under an unseen tablecloth and coloured light they keep 87 successes where the teleoperation-trained policies fall to 46. Adapting a task is fully automatic and costs \$21 of API usage on average, paid once per task, plus \$5 for a render contract; every further episode costs \$0.80 on average for simulation, rendering, and review, with no robot or operator. One hour of three-view data for a task costs \$107 on average, these costs included, slightly below a quote of \$117 for teleoperation in China and below \$290 in labour alone in North America.</summary>
+    <category term="cs.RO" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-03T18:25:14Z</published>
+    <arxiv:comment>22 pages, 9 figures, 9 tables. Project page: https://dagroup-pku.github.io/PyRUA-Lean/DataFarm Code: https://github.com/DAGroup-PKU/PyRUA-Lean/tree/DataFarm</arxiv:comment>
+    <arxiv:primary_category term="cs.RO"/>
+    <author>
+      <name>Kewei Zhang</name>
+    </author>
+    <author>
+      <name>Juncheng Ma</name>
+    </author>
+    <author>
+      <name>Guodong Lv</name>
+    </author>
+    <author>
+      <name>Duomin Wang</name>
+    </author>
+    <author>
+      <name>Feixiang Ruan</name>
+    </author>
+    <author>
+      <name>Ruiyang Si</name>
+    </author>
+    <author>
+      <name>Chuanrui Zhang</name>
+    </author>
+    <author>
+      <name>Yuxuan Chen</name>
+    </author>
+    <author>
+      <name>Hao Chen</name>
+    </author>
+    <author>
+      <name>Yichen Liu</name>
+    </author>
+    <author>
+      <name>Yintianrun Zhang</name>
+    </author>
+    <author>
+      <name>Yufan Deng</name>
+    </author>
+    <author>
+      <name>Enze Xie</name>
+    </author>
+    <author>
+      <name>Daquan Zhou</name>
+    </author>
+  </entry>
+</feed>
