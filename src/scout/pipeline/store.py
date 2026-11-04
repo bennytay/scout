@@ -1,5 +1,4 @@
 """Writes. Every function is idempotent: re-running ingestion never duplicates rows."""
-import json
 import re
 import unicodedata
 
@@ -103,5 +102,44 @@ async def insert_item(item: Item, canonical_url: str, e: Enrichment | None, embe
     return item_id
 
 
-def dumps(x) -> str:
-    return json.dumps(x, default=str)
+async def set_topics(item_id: int, topics: list[str]) -> None:
+    await db.execute("delete from item_topics where item_id = %s", item_id)
+    for rank, t in enumerate(x for x in topics if x in TOPICS):
+        await db.execute("insert into item_topics values (%s, %s, %s)", item_id, t, round(1.0 - 0.2 * rank, 2))
+
+
+async def apply_enrichment(item_id: int, e: Enrichment, cost: float, model: str) -> None:
+    """(Re-)apply an LLM enrichment to a stored item. Human-curated topics/relevance are kept."""
+    row = await db.fetchrow("select curated_at from items where id = %s", item_id)
+    curated = bool(row and row["curated_at"])
+    await db.execute(
+        """update items set summary = %s, entities = %s, enrich_status = 'done', enrich_model = %s,
+                            cost_usd = cost_usd + %s,
+                            auki_relevance = case when %s then auki_relevance else %s end,
+                            auki_relevance_reason = case when %s then auki_relevance_reason else %s end
+           where id = %s""",
+        e.summary, Jsonb(e.entities.model_dump()), model, round(cost, 6),
+        curated, e.auki_relevance, curated, e.auki_relevance_reason, item_id)
+    if not curated:
+        await set_topics(item_id, e.topics)
+    for name in dict.fromkeys(e.orgs):
+        if name.strip():
+            await db.execute("insert into item_orgs values (%s, %s) on conflict do nothing", item_id, await upsert_org(name))
+
+
+async def reenrich(item_id: int) -> float:
+    """Run enrichment again for one stored item. Returns the cost."""
+    from ..models import ItemType
+    from ..providers.llm import get_llm
+    from .enrich import enrich
+
+    r = await db.fetchrow("select * from items where id = %s", item_id)
+    authors = [a["name"] for a in await db.fetch(
+        """select a.name from item_authors ia join authors a on a.id = ia.author_id
+           where ia.item_id = %s order by ia.position""", item_id)]
+    item = Item(url=r["canonical_url"], type=ItemType(r["type"]), title=r["title"], source=r["source"],
+                summary=r["summary"], full_text=r["full_text"], authors=authors)
+    llm = get_llm()
+    e, cost = await enrich(llm, item)
+    await apply_enrichment(item_id, e, cost, llm.model)
+    return cost

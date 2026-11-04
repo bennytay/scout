@@ -84,22 +84,13 @@ async def _reembed(everything: bool) -> int:
 
 async def _retry_failed():
     """Re-enrich items whose LLM call failed earlier (e.g. provider outage)."""
-    from .models import Item
-    from .pipeline import store
-    from .pipeline.enrich import enrich
-    from .providers.llm import get_llm
+    from .pipeline.store import reenrich
 
-    llm = get_llm()
-    rows = await db.fetch("select * from items where enrich_status = 'failed' limit 200")
+    rows = await db.fetch("select id from items where enrich_status = 'failed' order by id limit 500")
+    cost = 0.0
     for r in rows:
-        item = Item(url=r["canonical_url"], type=r["type"], title=r["title"], source=r["source"],
-                    summary=r["summary"], full_text=r["full_text"])
-        e, cost = await enrich(llm, item)
-        await db.execute("delete from items where id = %s", r["id"])  # cascade, then reinsert cleanly
-        await store.insert_item(item.model_copy(update={"published_at": r["published_at"], "arxiv_id": r["arxiv_id"],
-                                                        "submitted_by": r["submitted_by"]}),
-                                r["canonical_url"], e, r["embedding"], float(r["cost_usd"]) + cost, llm.model,
-                                r["outlinks"])
+        cost += await reenrich(r["id"])
+    print(f"re-enriched {len(rows)} items, ${cost:.4f}")
 
 
 def main() -> None:
@@ -131,6 +122,7 @@ def main() -> None:
     m = sub.add_parser("mcp", help="run the MCP server")
     m.add_argument("--http", action="store_true", help="streamable HTTP with bearer auth (default stdio)")
     sub.add_parser("bot", help="run the Discord bot: monitors every source and posts the feed")
+    sub.add_parser("web", help="run the web UI: search and maintain the database (http://127.0.0.1:8000)")
     a = p.parse_args()
 
     log.setup()
@@ -138,6 +130,12 @@ def main() -> None:
         from . import mcp_server
 
         mcp_server.run_http() if a.http else mcp_server.run_stdio()
+        return
+    if a.cmd == "web":
+        from .web.app import run as run_web
+
+        asyncio.run(db.migrate())
+        run_web()
         return
     if a.cmd == "bot":
         from .bot.main import run
