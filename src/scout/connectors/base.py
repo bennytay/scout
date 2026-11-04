@@ -18,6 +18,7 @@ class Connector:
     name: ClassVar[str]
     kinds: ClassVar[tuple[str, ...]]       # which sources.kind values this connector consumes
     needs: ClassVar[tuple[str, ...]] = ()  # settings attributes that must be set (else skipped)
+    stateful: ClassVar[bool] = False       # if True, fetch() gets `state` (persisted in sources.cursor)
 
     async def fetch(self, http: httpx.AsyncClient, kind: str, value: str, since: datetime) -> list[Item]:
         raise NotImplementedError

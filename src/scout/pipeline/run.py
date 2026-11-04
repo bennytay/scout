@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 import numpy as np
+from psycopg.types.json import Jsonb
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from .. import db
@@ -90,7 +91,9 @@ class Pipeline:
 
 @retry(retry=retry_if_exception_type((httpx.TransportError, httpx.HTTPStatusError)),
        stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=30), reraise=True)
-async def _fetch(connector, http, kind, value, since):
+async def _fetch(connector, http, kind, value, since, state):
+    if connector.stateful:
+        return await connector.fetch(http, kind, value, since, state=state)
     return await connector.fetch(http, kind, value, since)
 
 
@@ -105,7 +108,7 @@ async def run_connector(name: str, since: datetime | None = None, only_value: st
     since = since or datetime.now(UTC) - timedelta(days=s.lookback_days)
     run = await db.fetchrow("insert into ingest_runs (connector) values (%s) returning id", name)
     sources = await db.fetch(
-        "select id, kind, value from sources where enabled and kind = any(%s) order by id", list(connector.kinds)
+        "select id, kind, value, cursor from sources where enabled and kind = any(%s) order by id", list(connector.kinds)
     )
     if only_value:
         sources = [x for x in sources if x["value"] == only_value]
@@ -113,10 +116,11 @@ async def run_connector(name: str, since: datetime | None = None, only_value: st
     async with http_client() as http:
         for src in sources:
             try:
-                items = (await _fetch(connector, http, src["kind"], src["value"], since))[: s.max_items_per_source]
+                state = dict(src["cursor"] or {})
+                items = (await _fetch(connector, http, src["kind"], src["value"], since, state))[: s.max_items_per_source]
                 await db.execute(
-                    """update sources set last_run_at = now(), last_success_at = now(),
-                       last_error = null, consecutive_failures = 0 where id = %s""", src["id"])
+                    """update sources set last_run_at = now(), last_success_at = now(), cursor = %s,
+                       last_error = null, consecutive_failures = 0 where id = %s""", Jsonb(state), src["id"])
             except Exception as e:
                 msg = f"{src['kind']}:{src['value']}: {e!r}"[:500]
                 stats.errors.append(msg)

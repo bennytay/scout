@@ -9,7 +9,7 @@ ADMIN_DSN = os.environ.get("TEST_ADMIN_DATABASE_URL", "postgresql://scout:scout@
 TEST_DSN = ADMIN_DSN.rsplit("/", 1)[0] + "/scout_test"
 
 os.environ.update({"LLM_PROVIDER": "fake", "EMBEDDING_PROVIDER": "fake", "DATABASE_URL": TEST_DSN,
-                   "XAI_API_KEY": "test-key", "GITHUB_TOKEN": ""})
+                   "X_BEARER_TOKEN": "test-token", "GITHUB_TOKEN": ""})
 
 
 def fixture(name: str) -> str:

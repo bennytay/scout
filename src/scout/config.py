@@ -21,8 +21,8 @@ class Settings(BaseSettings):
 
     # Sources
     github_token: str | None = None
-    xai_api_key: str | None = None          # X search goes through xAI's API (Grok x_search tool)
-    xai_model: str = "grok-4-fast"
+    x_bearer_token: str | None = None       # official X API v2 (pay-per-use credits)
+    x_max_results: int = 20                 # per tracked source per run (10-100); caps credit spend
     hf_token: str | None = None
 
     # Discord

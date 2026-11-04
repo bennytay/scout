@@ -216,7 +216,7 @@ def register_commands(bot: ScoutBot):
                 return
         await db.execute("""insert into sources (kind, value, added_by) values (%s, %s, %s)
                             on conflict (kind, value) do update set enabled = true""", kind, value, str(interaction.user))
-        note = " (needs `XAI_API_KEY` to monitor; shared X links always work)" if kind == "x_account" and not bot.cfg.xai_api_key else ""
+        note = " (needs `X_BEARER_TOKEN` to monitor; shared X links always work)" if kind == "x_account" and not bot.cfg.x_bearer_token else ""
         await interaction.response.send_message(f"Following `{kind}:{value}`{note}. Picked up on the next run.")
 
     @tree.command(description="Track a keyword across arXiv, Hacker News, GitHub and X.")

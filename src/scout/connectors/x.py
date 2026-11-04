@@ -1,108 +1,104 @@
-"""X (Twitter).
+"""X (Twitter) via the official X API v2 (pay-per-use credits).
 
-Two paths, neither needs the paid X API:
-  1. Monitoring tracked accounts/queries via xAI's API (Grok with its X-search tool). Needs XAI_API_KEY.
-  2. Resolving individual X links shared in Discord via the public fxtwitter embed API (no key).
+- x_account: a user's recent posts (no retweets/replies)
+- x_query:   recent search, restricted to posts with links (papers/repos/demos), English, no retweets/replies
+Incremental: the user id and newest post id are kept in `sources.cursor`, so each run only pays for new posts.
+Shared X links in Discord resolve via the free fxtwitter embed API first, then the X API as fallback.
 """
-import json
 import re
 from datetime import UTC, datetime
 
 import httpx
 
 from ..config import settings
-from ..log import log
 from ..models import Item, ItemType
-from ..urls import find_urls
 from .base import Connector, register
 
-XAI = "https://api.x.ai/v1/responses"
+API = "https://api.x.com/2"
 FX = "https://api.fxtwitter.com/status/{id}"
-
-PROMPT = """Search X for posts {what} published since {since}.
-Only include posts about robotics research or products: papers, code releases, models, datasets, demos.
-Return ONLY a JSON array (no prose), max 25 objects:
-[{{"url": "https://x.com/<handle>/status/<id>", "handle": "...", "text": "full post text",
-   "created_at": "ISO-8601", "likes": 0, "reposts": 0, "links": ["urls in the post"]}}]"""
+TWEET_FIELDS = "created_at,public_metrics,entities,author_id,note_tweet"
+COMMON = {"tweet.fields": TWEET_FIELDS, "expansions": "author_id", "user.fields": "name,username"}
 
 
-def post_item(p: dict, source: str = "x", source_ref: str | None = None) -> Item | None:
-    url = p.get("url") or ""
-    m = re.search(r"x\.com/([^/]+)/status/(\d+)", url) or re.search(r"twitter\.com/([^/]+)/status/(\d+)", url)
-    if not m:
-        return None
-    text = p.get("text") or ""
-    created = p.get("created_at")
-    try:
-        published = datetime.fromisoformat(created) if created else None
-    except ValueError:
-        published = None
+def _headers() -> dict:
+    return {"Authorization": f"Bearer {settings().x_bearer_token}"}
+
+
+def tweet_item(t: dict, users: dict[str, dict], source: str = "x", source_ref: str | None = None) -> Item:
+    user = users.get(t.get("author_id"), {})
+    handle = user.get("username") or "i"
+    text = (t.get("note_tweet") or {}).get("text") or t.get("text") or ""
+    m = t.get("public_metrics") or {}
+    links = [u.get("unwound_url") or u.get("expanded_url") for u in (t.get("entities") or {}).get("urls", [])]
+    links = [u for u in links if u and not re.match(r"https?://(x|twitter)\.com/.+/(photo|video)/", u)]
     return Item(
-        url=f"https://x.com/{m.group(1)}/status/{m.group(2)}", type=ItemType.post,
-        title=(text.split("\n")[0][:140] or f"Post by @{m.group(1)}"), summary=text, full_text=text,
-        published_at=published, source=source, source_ref=source_ref or m.group(2),
-        authors=[p.get("author_name") or m.group(1)], author_handles={"x": m.group(1)},
-        metrics={"x_likes": p.get("likes") or 0, "x_reposts": p.get("reposts") or 0},
-        outlinks=list(dict.fromkeys((p.get("links") or []) + find_urls(text))),
+        url=f"https://x.com/{handle}/status/{t['id']}", type=ItemType.post,
+        title=(text.split("\n")[0][:140] or f"Post by @{handle}"), summary=text, full_text=text,
+        published_at=datetime.fromisoformat(t["created_at"].replace("Z", "+00:00")) if t.get("created_at") else None,
+        source=source, source_ref=source_ref or t["id"],
+        authors=[user.get("name") or handle], author_handles={"x": handle},
+        metrics={"x_likes": m.get("like_count", 0), "x_reposts": m.get("retweet_count", 0),
+                 "x_quotes": m.get("quote_count", 0), "x_impressions": m.get("impression_count", 0)},
+        outlinks=list(dict.fromkeys(links)),
     )
 
 
-def _output_text(data: dict) -> str:
-    if data.get("output_text"):
-        return data["output_text"]
-    parts = []
-    for o in data.get("output", []):
-        for c in o.get("content", []) or []:
-            if c.get("type") in ("output_text", "text"):
-                parts.append(c.get("text", ""))
-    return "".join(parts)
-
-
-def parse_grok(text: str) -> list[dict]:
-    m = re.search(r"\[.*\]", text, re.DOTALL)
-    try:
-        return json.loads(m.group(0)) if m else []
-    except json.JSONDecodeError:
-        return []
+def parse_page(data: dict, source_ref: str | None = None) -> list[Item]:
+    users = {u["id"]: u for u in (data.get("includes") or {}).get("users", [])}
+    return [tweet_item(t, users, source_ref=source_ref) for t in data.get("data") or []]
 
 
 async def resolve_post(http: httpx.AsyncClient, url: str) -> Item | None:
     m = re.search(r"/status/(\d+)", url)
     if not m:
         return None
-    r = await http.get(FX.format(id=m.group(1)))
-    if r.status_code != 200:
-        return None
-    t = r.json().get("tweet") or {}
-    links = [f.get("original") or f.get("url") for f in (t.get("raw_text") or {}).get("facets", []) if f.get("type") == "url"]
-    return post_item({
-        "url": t.get("url", url), "text": t.get("text"), "likes": t.get("likes"), "reposts": t.get("retweets"),
-        "author_name": (t.get("author") or {}).get("name"),
-        "created_at": datetime.fromtimestamp(t["created_timestamp"], tz=UTC).isoformat()
-        if t.get("created_timestamp") else None,
-        "links": [l for l in links if l],
-    })
+    r = await http.get(FX.format(id=m.group(1)))  # free path first: saves API credits
+    if r.status_code == 200 and (t := r.json().get("tweet")):
+        links = [f.get("original") or f.get("url") for f in (t.get("raw_text") or {}).get("facets", [])
+                 if f.get("type") == "url"]
+        author = t.get("author") or {}
+        return tweet_item({
+            "id": t["id"], "text": t.get("text"), "author_id": "a",
+            "created_at": datetime.fromtimestamp(t["created_timestamp"], tz=UTC).isoformat()
+            if t.get("created_timestamp") else None,
+            "public_metrics": {"like_count": t.get("likes", 0), "retweet_count": t.get("retweets", 0)},
+            "entities": {"urls": [{"expanded_url": l} for l in links if l]},
+        }, {"a": {"username": author.get("screen_name"), "name": author.get("name")}})
+    if settings().x_bearer_token:
+        r = await http.get(f"{API}/tweets/{m.group(1)}", params=COMMON, headers=_headers())
+        if r.status_code == 200:
+            d = r.json()
+            return parse_page({"data": [d["data"]], "includes": d.get("includes")})[0]
+    return None
 
 
 @register
 class XConnector(Connector):
     name = "x"
     kinds = ("x_account", "x_query")
-    needs = ("xai_api_key",)
+    needs = ("x_bearer_token",)
+    stateful = True
 
-    async def fetch(self, http, kind, value, since):
-        s = settings()
-        what = f"from @{value.lstrip('@')}" if kind == "x_account" else f'matching "{value}"'
-        tool: dict = {"type": "x_search", "from_date": since.date().isoformat()}
+    async def fetch(self, http, kind, value, since, state=None):
+        state = state if state is not None else {}
+        params = {**COMMON, "max_results": settings().x_max_results}
+        if state.get("since_id"):
+            params["since_id"] = state["since_id"]
+        else:
+            params["start_time"] = since.strftime("%Y-%m-%dT%H:%M:%SZ")
         if kind == "x_account":
-            tool["allowed_x_handles"] = [value.lstrip("@")]
-        r = await http.post(
-            XAI, timeout=120,
-            headers={"Authorization": f"Bearer {s.xai_api_key}"},
-            json={"model": s.xai_model, "tools": [tool],
-                  "input": [{"role": "user", "content": PROMPT.format(what=what, since=since.date())}]},
-        )
+            handle = value.lstrip("@")
+            if not state.get("user_id"):
+                r = await http.get(f"{API}/users/by/username/{handle}", headers=_headers())
+                r.raise_for_status()
+                state["user_id"] = r.json()["data"]["id"]
+            r = await http.get(f"{API}/users/{state['user_id']}/tweets",
+                               params={**params, "exclude": "retweets,replies"}, headers=_headers())
+        else:
+            q = f"({value}) has:links -is:retweet -is:reply lang:en"
+            r = await http.get(f"{API}/tweets/search/recent", params={**params, "query": q}, headers=_headers())
         r.raise_for_status()
-        posts = parse_grok(_output_text(r.json()))
-        log.info("x.grok", query=value, posts=len(posts))
-        return [i for p in posts if (i := post_item(p, source_ref=value))]
+        data = r.json()
+        if newest := (data.get("meta") or {}).get("newest_id"):
+            state["since_id"] = newest
+        return parse_page(data, source_ref=value)
