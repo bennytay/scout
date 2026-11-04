@@ -38,3 +38,7 @@ def test_link_reply_duplicate_and_failure():
     assert "already tracked (seen in arXiv, Hugging Face)" in link_reply(
         item(1, 0.5, seen_in=["arxiv", "huggingface"]), duplicate=True)
     assert source_failed("github", ["HTTPStatusError 403 rate limit"]).startswith("⚠️ **GitHub** failed:")
+
+
+def test_source_update_all_off_topic():
+    assert source_update("github", [item(1, 0.1), item(2, 0.0)]) == "📡 **GitHub** · 2 checked, none relevant"

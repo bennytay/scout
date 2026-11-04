@@ -33,7 +33,10 @@ def source_update(source: str, items: list[dict], hot: float = 0.75, show: int =
     items = sorted((i for i in items if (i.get("auki_relevance") or 0) >= OFF_TOPIC),
                    key=lambda i: i.get("auki_relevance") or 0, reverse=True)
     n_hot = sum(1 for i in items if (i.get("auki_relevance") or 0) >= hot)
-    head = f"📡 **{LABEL.get(source, source)}** · {len(items)} new" + (f" · {n_hot} 🔥" if n_hot else "")
+    name = LABEL.get(source, source)
+    if not items:
+        return f"📡 **{name}** · {total} checked, none relevant"
+    head = f"📡 **{name}** · {len(items)} new" + (f" · {n_hot} 🔥" if n_hot else "")
     if total > len(items):
         head += f" · {total - len(items)} off-topic hidden"
     lines = [head]

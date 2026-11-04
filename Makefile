@@ -33,5 +33,5 @@ mcp-http:
 
 demo: db            ## separate fresh database, then the bot fills the Discord feed live from every source
 	docker compose exec -T db psql -U scout -d postgres -qc "drop database if exists scout_demo with (force)" -c "create database scout_demo"
-	DATABASE_URL=postgresql://scout:scout@localhost:54329/scout_demo LOOKBACK_DAYS=1 uv run scout migrate
-	DATABASE_URL=postgresql://scout:scout@localhost:54329/scout_demo LOOKBACK_DAYS=1 uv run scout bot
+	DATABASE_URL=postgresql://scout:scout@localhost:54329/scout_demo LOOKBACK_DAYS=2 uv run scout migrate
+	DATABASE_URL=postgresql://scout:scout@localhost:54329/scout_demo LOOKBACK_DAYS=2 uv run scout bot

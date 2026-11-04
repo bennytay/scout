@@ -5,6 +5,7 @@ from ..models import Item, ItemType
 from .base import Connector, register
 
 API = "https://huggingface.co/api"
+MIN_LIKES = 3
 
 
 def _dt(s):
@@ -54,11 +55,13 @@ class HuggingFaceConnector(Connector):
                 day -= timedelta(days=1)
             return out
         kind_, _, arg = value.partition(":")  # models:robotics  |  datasets:lerobot
-        params = {"sort": "createdAt", "direction": -1, "limit": 50}
+        # Trending, not newest: "newest" is a firehose of personal fine-tune checkpoints. Trending items are
+        # what people are actually using; dedupe means each one is only reported the first time.
+        params = {"sort": "trendingScore", "limit": 30}
         if kind_ == "models":
             params["pipeline_tag"] = arg
         else:
             params["search"] = arg
         r = await http.get(f"{API}/{kind_}", params=params, headers=headers)
         r.raise_for_status()
-        return [hub_item(x, kind_) for x in r.json() if (_dt(x.get("createdAt")) or since) >= since]
+        return [hub_item(x, kind_) for x in r.json() if (x.get("likes") or 0) >= MIN_LIKES]
