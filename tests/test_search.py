@@ -82,3 +82,12 @@ async def test_min_relevance_filter(database):
     rows = await search.search(min_relevance=0.7)
     assert rows and all(r["auki_relevance"] >= 0.7 for r in rows)
     assert await search.search("humanoid", min_relevance=0.99) == []
+
+
+async def test_entities_are_searchable_and_exclusions_bind_all_rankers(database):
+    ids = await seed()
+    await database.execute("""update items set entities = '{"robots": ["Fourier GR-1"], "methods": ["GR00T"]}'
+                              where id = %s""", ids[3])
+    assert (await search.search("GR00T"))[0]["id"] == ids[3]
+    hits = {r["id"] for r in await search.search('humanoid -unitree')}
+    assert ids[3] in hits and ids[4] not in hits  # the Unitree article is excluded from every ranker
