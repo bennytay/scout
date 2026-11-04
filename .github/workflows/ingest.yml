@@ -1,0 +1,49 @@
+name: ingest
+on:
+  schedule:
+    - cron: "17 */4 * * *"      # every 4h: arxiv, github, huggingface, hackernews, alphaxiv, rss
+    - cron: "47 7,13,19 * * *"  # 3x/day: x (xAI calls cost money)
+  workflow_dispatch:
+    inputs:
+      days: {description: "look-back days (backfill)", required: false, default: ""}
+concurrency: {group: ingest, cancel-in-progress: false}
+env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  HF_TOKEN: ${{ secrets.HF_TOKEN }}
+  DISCORD_ALERTS_WEBHOOK_URL: ${{ secrets.DISCORD_ALERTS_WEBHOOK_URL }}
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false          # per-connector isolation: one broken source never blocks the others
+      max-parallel: 3
+      matrix:
+        connector: [arxiv, github, huggingface, hackernews, alphaxiv, rss, x]
+    steps:
+      - name: skip x on the frequent schedule
+        id: gate
+        run: |
+          if [ "${{ matrix.connector }}" = "x" ] && [ "${{ github.event.schedule }}" = "17 */4 * * *" ]; then echo "skip=1" >> $GITHUB_OUTPUT; fi
+          if [ "${{ matrix.connector }}" != "x" ] && [ "${{ github.event.schedule }}" = "47 7,13,19 * * *" ]; then echo "skip=1" >> $GITHUB_OUTPUT; fi
+      - if: steps.gate.outputs.skip != '1'
+        uses: actions/checkout@v4
+      - if: steps.gate.outputs.skip != '1'
+        uses: astral-sh/setup-uv@v6
+      - if: steps.gate.outputs.skip != '1'
+        run: uv sync --no-dev && uv run scout migrate
+      - if: steps.gate.outputs.skip != '1'
+        run: uv run scout ingest --source ${{ matrix.connector }} ${{ inputs.days && format('--days {0}', inputs.days) || '' }}
+  health:
+    needs: ingest
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --no-dev
+      - run: uv run scout health --notify || true
