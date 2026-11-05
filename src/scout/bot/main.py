@@ -99,7 +99,7 @@ class ScoutBot(discord.Client):
             await status.edit(content=scan_line(st, True))
         if st.errors:
             await self.feed(fmt.source_failed("x", st.errors))
-        if st.inserted:
+        if await brief_due(self.cfg.brief_every_hours):
             b = await make_brief()
             if b and b["stories"]:
                 for msg in fmt.render_brief(b, x_monitored=True):
@@ -140,6 +140,16 @@ class ScoutBot(discord.Client):
             await message.reply(text, suppress_embeds=True, mention_author=False)
         await message.remove_reaction("⏳", self.user)
         await message.add_reaction("✅")
+
+
+async def brief_due(hours: int) -> bool:
+    """A brief is due if the last one is older than `hours` and something was kept since it."""
+    row = await db.fetchrow(
+        """select coalesce(max(window_end), '-infinity') < now() - make_interval(hours => %s) as due,
+                  exists (select 1 from items where ingested_at > coalesce((select max(window_end) from briefs),
+                                                                             '-infinity')) as fresh
+           from briefs""", hours)
+    return row["due"] and row["fresh"]
 
 
 async def answer(question: str) -> str:

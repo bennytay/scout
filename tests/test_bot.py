@@ -1,5 +1,5 @@
 """Bot logic that touches the database: /follow, /unfollow, radar suggestions (the learn step)."""
-from scout.bot.main import follow, radar_suggestion, scan_line
+from scout.bot.main import brief_due, follow, radar_suggestion, scan_line
 from scout.pipeline.run import RunStats
 
 
@@ -25,3 +25,12 @@ def test_scan_line():
     assert scan_line(st, True) == ("📡 Scanned X: 212 posts → 42 passed the filter → **14 kept** "
                                    "(+6 papers/repos they link to)")
     assert scan_line(None, False) == "📡 Scanning X ⏳"
+
+
+async def test_brief_cadence(database):
+    assert not await brief_due(6)  # nothing stored yet
+    await database.execute("insert into items (canonical_url, type, title, source) values ('https://x.com/a/status/1', 'post', 't', 'x')")
+    assert await brief_due(6)
+    await database.execute("insert into briefs (window_start, window_end, n_candidates, n_new_items, model, cost_usd, stories, sources) "
+                           "values (now() - interval '1 day', now(), 1, 1, 'm', 0, '[]', '{}')")
+    assert not await brief_due(6)  # just posted one
