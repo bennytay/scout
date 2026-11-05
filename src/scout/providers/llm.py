@@ -1,4 +1,4 @@
-"""LLM adapter. One interface, swappable providers: anthropic (default), openai, fake (offline/tests)."""
+"""LLM adapter. One interface, providers: anthropic (Claude), fake (offline/tests)."""
 import re
 from typing import Protocol, TypeVar
 
@@ -55,32 +55,6 @@ class AnthropicLLM:
         return out, _cost(r.usage.input_tokens, r.usage.output_tokens, self.model)
 
 
-class OpenAILLM:
-    def __init__(self, model: str):
-        from openai import AsyncOpenAI
-
-        self.model = model
-        self.client = AsyncOpenAI(api_key=settings().openai_api_key)
-
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=20), reraise=True)
-    async def structured(self, system, user, schema):
-        r = await self.client.chat.completions.parse(
-            model=self.model,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-            response_format=schema,
-        )
-        return r.choices[0].message.parsed, _cost(r.usage.prompt_tokens, r.usage.completion_tokens)
-
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=20), reraise=True)
-    async def text(self, system, user, max_tokens=2000):
-        r = await self.client.chat.completions.create(
-            model=self.model,
-            max_completion_tokens=max_tokens,
-            messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
-        )
-        return r.choices[0].message.content or "", _cost(r.usage.prompt_tokens, r.usage.completion_tokens)
-
-
 KEYWORDS = {
     "manipulation": r"manipulat|grasp|dexter|pick-and-place|bimanual|gripper",
     "locomotion": r"locomot|legged|quadruped|gait|walking|biped",
@@ -129,6 +103,4 @@ def get_llm(model: str | None = None) -> LLM:
     s = settings()
     if s.llm_provider == "anthropic":
         return AnthropicLLM(model or s.llm_model)
-    if s.llm_provider == "openai":
-        return OpenAILLM(model or s.llm_model)
     return FakeLLM()

@@ -17,7 +17,6 @@ dependencies = [
   "discord.py>=2.4",
   "mcp>=1.9",
   "anthropic>=0.70",
-  "openai>=1.40",
   "uvicorn>=0.30",
   "starlette>=0.37",
   "fastembed>=0.9.1",

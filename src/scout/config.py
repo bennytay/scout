@@ -9,17 +9,16 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql://scout:scout@localhost:54329/scout"
 
-    # Providers (swappable). llm_provider: anthropic | openai | fake. embedding_provider: local | openai | fake
+    # Providers. llm_provider: anthropic | fake. embedding_provider: local | fake
     llm_provider: str = "anthropic"
     llm_model: str = "claude-haiku-5-5"        # per-item enrichment: cheap, high volume
     brief_model: str = "claude-opus-5-5"       # the news brief: one editorial reasoning call per cycle
     llm_input_usd_per_mtok: float = 0.10
     llm_output_usd_per_mtok: float = 0.50
     embedding_provider: str = "local"
-    embedding_model: str = "BAAI/bge-small-en-v1.5"   # for openai: text-embedding-3-small
+    embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_usd_per_mtok: float = 0.0
     anthropic_api_key: str | None = None
-    openai_api_key: str | None = None
 
     # Sources
     github_token: str | None = None

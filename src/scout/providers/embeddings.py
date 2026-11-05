@@ -1,12 +1,10 @@
-"""Embedding adapter. Default: local fastembed (no API key). Also openai, and fake (tests/offline). All 384-d."""
+"""Embedding adapter. Default: local fastembed (no API key). Also fake (tests/offline). All 384-d."""
 import asyncio
 import hashlib
 import math
 import re
 from functools import lru_cache
 from typing import Protocol
-
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ..config import settings
 
@@ -37,20 +35,6 @@ class LocalEmbedder:
         return vecs, 0.0
 
 
-class OpenAIEmbedder:
-    def __init__(self, model: str):
-        from openai import AsyncOpenAI
-
-        self.model = model
-        self.client = AsyncOpenAI(api_key=settings().openai_api_key)
-
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=20), reraise=True)
-    async def embed(self, texts, query=False):
-        r = await self.client.embeddings.create(model=self.model, input=[t[:24000] for t in texts], dimensions=DIM)
-        cost = r.usage.total_tokens / 1e6 * settings().embedding_usd_per_mtok
-        return [d.embedding for d in r.data], cost
-
-
 class FakeEmbedder:
     """Hashed bag-of-words. Deterministic and instant, for unit tests."""
 
@@ -70,6 +54,4 @@ def get_embedder() -> Embedder:
     s = settings()
     if s.embedding_provider == "local":
         return LocalEmbedder(s.embedding_model)
-    if s.embedding_provider == "openai":
-        return OpenAIEmbedder(s.embedding_model)
     return FakeEmbedder()
