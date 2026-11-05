@@ -47,30 +47,70 @@ def link_reply(item: dict, duplicate: bool = False) -> str:
     return "\n".join([head] + [b for b in bullets if b])[:LIMIT]
 
 
-def render_brief(b: dict, x_monitored: bool = True) -> list[str]:
-    """The brief as Discord messages (split at story boundaries to stay under the 2000-char limit)."""
-    end = b["window_end"]
-    head = (f"📰 **Robotics brief** · {end:%a %d %b, %H:%M} UTC · {b['n_new_items']} new items → "
-            f"{len(b['stories'])} stories")
-    blocks = []
-    for n, st in enumerate(b["stories"], 1):
-        links = " · ".join(f"[{_cut(lk['label'], 40)}](<{lk['url']}>)" for lk in st["links"])
-        blocks.append(f"**{n}. {_cut(st['headline'], 110)}**{' 🔥' if st.get('hot') else ''}\n"
-                      f"{_cut(st['why'], 200)}\n{links}")
-    counts = b.get("sources") or {}
-    mon = [f"{LABEL.get(k, k)} {v}" for k, v in counts.items() if k not in ("discord", "web", "mcp")]
-    if not x_monitored and "x" not in counts:
-        mon.append("X (team links only)")
-    foot = "📡 Monitored: " + " · ".join(mon) if mon else ""
-    msgs, cur = [], head
-    for blk in blocks + ([foot] if foot else []):
-        if len(cur) + len(blk) + 2 > LIMIT:
+BLUE, ORANGE = 0x378ADD, 0xD85A30  # card colour bar: orange marks stories that matter to Auki
+EMBEDS_PER_MSG, EMBED_CHARS = 10, 5500  # Discord: 10 embeds and 6000 characters per message
+
+
+def _lead(story: dict) -> dict:
+    """The story's lead link: its first X post, else its first link."""
+    return next((lk for lk in story["links"] if lk["url"].startswith("https://x.com/")), story["links"][0])
+
+
+def story_card(n: int, story: dict, item: dict | None, big_image: bool) -> dict:
+    """One brief story as a Discord embed: poster, headline, why it matters, its other links, likes, picture."""
+    item = item or {}
+    lead = _lead(story)
+    media, metrics = item.get("media") or {}, item.get("metrics") or {}
+    others = [lk for lk in story["links"] if lk is not lead]
+    body = _cut(story["why"], 220)
+    if others:
+        body += "\n" + " · ".join(f"[{_cut(lk['label'], 40)}]({lk['url']})" for lk in others[:4])
+    card = {"title": _cut(f"{n}. {story['headline']}", 250), "url": lead["url"], "description": body,
+            "color": ORANGE if story.get("hot") else BLUE}
+    if lead["url"].startswith("https://x.com/"):
+        card["author"] = {"name": "@" + lead["url"].split("/")[3], "url": lead["url"]}
+        if media.get("avatar"):
+            card["author"]["icon_url"] = media["avatar"]
+    foot = []
+    if metrics.get("x_likes"):
+        foot.append(f"❤ {int(metrics['x_likes']):,}")
+    if metrics.get("x_reposts"):
+        foot.append(f"🔁 {int(metrics['x_reposts']):,}")
+    if item.get("importance") is not None:
+        foot.append(f"importance {item['importance']:.2f}")
+    if story.get("hot"):
+        foot.append("🔥 Auki")
+    if foot:
+        card["footer"] = {"text": " · ".join(foot)}
+    if media.get("image"):
+        card["image" if big_image else "thumbnail"] = {"url": media["image"]}
+    return card
+
+
+def _card_chars(card: dict) -> int:
+    return sum(len(card.get(k) or "") for k in ("title", "description")) + len(
+        (card.get("author") or {}).get("name", "")) + len((card.get("footer") or {}).get("text", ""))
+
+
+def brief_messages(b: dict, items: dict[int, dict] | None = None, when: str | None = None) -> list[dict]:
+    """The brief as Discord messages: a one-line header, then one card per story (the top story with a big
+    picture). `items` maps item id -> {media, metrics, importance} for each story's lead link."""
+    items = items or {}
+    when = when or f"{b['window_end']:%a %-d %b}"
+    head = f"📰 **Robotics brief** · {when} · {len(b['stories'])} stories from {b['n_new_items']} new items"
+    cards = [story_card(n, st, items.get(_lead(st).get("item_id")), big_image=n == 1)
+             for n, st in enumerate(b["stories"], 1)]
+    msgs, cur, size = [], [], 0
+    for c in cards:
+        if cur and (len(cur) == EMBEDS_PER_MSG or size + _card_chars(c) > EMBED_CHARS):
             msgs.append(cur)
-            cur = blk
-        else:
-            cur += "\n\n" + blk
-    msgs.append(cur)
-    return msgs
+            cur, size = [], 0
+        cur.append(c)
+        size += _card_chars(c)
+    if cur:
+        msgs.append(cur)
+    return [{"content": head if i == 0 else None, "embeds": m} for i, m in enumerate(msgs)] or [{"content": head,
+                                                                                                "embeds": []}]
 
 
 # ---------- replies to @Scout and slash commands ----------

@@ -1,14 +1,18 @@
 """Discord bot: Scout's whole interface.
 
-1. Monitor: scan X every few hours (one live status line, edited in place), then post the news brief: the top
-   7-10 stories, each led by an X post and linked to its paper / code / model.
+1. Monitor: scan X every few hours, silently (only failures are posted). Once a day, post the news brief: the top
+   7-10 stories as cards, each led by its X post (picture, likes) and linked to its paper / code / model.
+   /scan runs a scan now and posts the brief of anything new.
 2. Team links: any link posted in the links channel is ingested and answered in 4 bullets.
 3. Ask: @Scout <question> (or /ask). Claude turns the question into search filters (author, topic, date, …),
    searches, and answers with numbered sources.
 4. Look up, no LLM: /author (autocomplete), /topic, /recent ("what's stored?"), and /follow, /unfollow to edit the
    X radar.
 """
+import asyncio
 import re
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import discord
 from discord import app_commands
@@ -16,7 +20,7 @@ from discord.ext import tasks
 
 from .. import db, health
 from .. import search as s
-from ..brief import make_brief
+from ..brief import brief_when, lead_items, make_brief
 from ..config import settings
 from ..log import log
 from ..models import TOPICS
@@ -36,15 +40,6 @@ async def due(name: str, hours: int) -> bool:
     return row["due"]
 
 
-def scan_line(st, done: bool) -> str:
-    if not done:
-        return "📡 Scanning X ⏳"
-    judged = st.fetched - st.gated
-    line = (f"📡 Scanned X: {st.fetched} posts → {judged} passed the filter → **{st.inserted} kept**"
-            + (f" (+{st.expanded} papers/repos they link to)" if st.expanded else ""))
-    return line + (" ⚠️" if st.errors else "")
-
-
 class ScoutBot(discord.Client):
     def __init__(self):
         intents = discord.Intents.default()
@@ -54,6 +49,7 @@ class ScoutBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
         self.reported_problems: set[str] = set()
         self.said_no_x = False
+        self.scan_lock = asyncio.Lock()
         register_commands(self.tree)
 
     async def setup_hook(self):
@@ -76,7 +72,7 @@ class ScoutBot(discord.Client):
             if not self.said_no_x:
                 await self.feed("📡 X isn't configured (set X_API_KEY + X_API_SECRET), so I'm only reading team links.")
                 self.said_no_x = True
-        elif await due("x", self.cfg.x_every_hours):
+        else:
             await self.cycle()
         problems = set(await health.problems())
         if new := problems - self.reported_problems:  # only say it once
@@ -84,28 +80,33 @@ class ScoutBot(discord.Client):
         self.reported_problems = problems
 
     async def cycle(self) -> None:
-        """Scan X (one status message, edited in place), post failures, the brief, and maybe a radar suggestion."""
-        channel = self.get_channel(self.cfg.discord_feed_channel_id or 0)
-        status = await channel.send(scan_line(None, False), suppress_embeds=True) if channel else None
-        try:
-            st = await run_connector("x")
-        except Exception as e:
-            log.error("monitor.crashed", error=repr(e)[:300])
-            if status:
-                await status.edit(content="📡 X scan crashed ⚠️")
-            await self.feed(fmt.source_failed("x", [repr(e)]))
-            return
-        if status:
-            await status.edit(content=scan_line(st, True))
-        if st.errors:
-            await self.feed(fmt.source_failed("x", st.errors))
-        if await brief_due(self.cfg.brief_every_hours):
+        """Scan X if due (silently; failures are posted), the daily brief if due, maybe a radar suggestion."""
+        if await due("x", self.cfg.x_every_hours) and not self.scan_lock.locked():
+            await self.scan()
+            if sug := await radar_suggestion():
+                await self.feed(sug)
+        if await brief_due(self.cfg.brief_hour, self.cfg.brief_tz):
             b = await make_brief()
             if b and b["stories"]:
-                for msg in fmt.render_brief(b, x_monitored=True):
-                    await self.feed(msg)
-        if sug := await radar_suggestion():
-            await self.feed(sug)
+                for msg in await brief_payload(b):
+                    await self.feed_message(msg)
+
+    async def scan(self):
+        """One X scan at a time (the 2-hourly loop and /scan share this)."""
+        async with self.scan_lock:
+            try:
+                st = await run_connector("x")
+            except Exception as e:
+                log.error("monitor.crashed", error=repr(e)[:300])
+                await self.feed(fmt.source_failed("x", [repr(e)]))
+                return None
+        if st.errors:
+            await self.feed(fmt.source_failed("x", st.errors))
+        return st
+
+    async def feed_message(self, msg: dict):
+        if channel := self.get_channel(self.cfg.discord_feed_channel_id or 0):
+            await channel.send(**to_discord(msg))
 
     @monitor.before_loop
     async def _ready(self):
@@ -142,14 +143,33 @@ class ScoutBot(discord.Client):
         await message.add_reaction("✅")
 
 
-async def brief_due(hours: int) -> bool:
-    """A brief is due if the last one is older than `hours` and something was kept since it."""
+def brief_cutoff(now: datetime, hour: int, tz: str) -> datetime:
+    """The most recent daily brief time (e.g. 9:00 Sydney) at or before `now`."""
+    local = now.astimezone(ZoneInfo(tz))
+    cut = local.replace(hour=hour, minute=0, second=0, microsecond=0)
+    return cut if cut <= local else cut - timedelta(days=1)
+
+
+async def brief_due(hour: int, tz: str, now: datetime | None = None) -> bool:
+    """Due once a day: no brief since today's brief time, and something was kept since the last brief."""
+    now = now or datetime.now(ZoneInfo(tz))
     row = await db.fetchrow(
-        """select coalesce(max(window_end), '-infinity') < now() - make_interval(hours => %s) as due,
+        """select coalesce(max(window_end), '-infinity') < %s as due,
                   exists (select 1 from items where ingested_at > coalesce((select max(window_end) from briefs),
                                                                              '-infinity')) as fresh
-           from briefs""", hours)
+           from briefs""", brief_cutoff(now, hour, tz))
     return row["due"] and row["fresh"]
+
+
+async def brief_payload(b: dict) -> list[dict]:
+    return fmt.brief_messages(b, await lead_items(b), brief_when(b))
+
+
+def to_discord(msg: dict) -> dict:
+    out = {"embeds": [discord.Embed.from_dict(e) for e in msg["embeds"]]}
+    if msg.get("content"):
+        out["content"] = msg["content"]
+    return out
 
 
 async def answer(question: str) -> str:
@@ -224,6 +244,21 @@ def register_commands(tree: app_commands.CommandTree) -> None:
         r = await s.recent(days)
         links = await s.linked([i["id"] for i in r["top"]])
         await interaction.followup.send(fmt.recent_reply(r, links), suppress_embeds=True)
+
+    @tree.command(description="Scan X now and post a brief of anything new since the last one")
+    async def scan(interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True)
+        bot = interaction.client
+        st = await bot.scan()
+        if st is None:
+            await interaction.followup.send("⚠️ The X scan failed. Details are in the feed channel.")
+            return
+        b = await make_brief()
+        if not b or not b["stories"]:
+            await interaction.followup.send(f"Nothing new worth a brief since the last one ({st.fetched} posts scanned).")
+            return
+        for msg in await brief_payload(b):
+            await interaction.followup.send(**to_discord(msg))
 
     @tree.command(name="follow", description="Add an X account to the radar (trusted: skips the filter)")
     async def follow_cmd(interaction: discord.Interaction, handle: str):

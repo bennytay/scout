@@ -1,7 +1,7 @@
 """Discord messages: concise, bulleted, everything a link, never over Discord's 2000-char limit."""
 from datetime import UTC, datetime
 
-from scout.bot.format import link_reply, render_brief, source_failed
+from scout.bot.format import brief_messages, link_reply, source_failed
 
 
 def item(n: int, rel: float, **kw) -> dict:
@@ -28,26 +28,35 @@ def test_link_reply_duplicate_and_failure():
 
 
 def brief(n_stories: int, why: str = "Why it matters.") -> dict:
-    return {"window_end": datetime(2026, 11, 5, 9, 0, tzinfo=UTC), "n_new_items": 120, "sources": {"arxiv": 80, "x": 12},
+    return {"window_end": datetime(2026, 11, 5, 9, 0, tzinfo=UTC), "n_new_items": 120, "sources": {"x": 12},
             "stories": [{"headline": f"Headline {i}", "why": why, "hot": i == 1,
-                         "links": [{"label": "𝕏 @lab", "url": f"https://x.com/lab/status/{i}"},
-                                   {"label": "paper: Foo", "url": f"https://arxiv.org/abs/2611.{i:05d}"}]}
+                         "links": [{"label": "𝕏 @lab", "url": f"https://x.com/lab/status/{i}", "item_id": i},
+                                   {"label": "paper: Foo", "url": f"https://arxiv.org/abs/2611.{i:05d}", "item_id": 100 + i}]}
                         for i in range(1, n_stories + 1)]}
 
 
-def test_render_brief_is_numbered_linked_and_concise():
-    [msg] = render_brief(brief(3))
-    lines = msg.splitlines()
-    assert lines[0] == "📰 **Robotics brief** · Thu 05 Nov, 09:00 UTC · 120 new items → 3 stories"
-    assert "**1. Headline 1** 🔥" in lines and "**2. Headline 2**" in lines
-    assert "[𝕏 @lab](<https://x.com/lab/status/1>) · [paper: Foo](<https://arxiv.org/abs/2611.00001>)" in lines
-    assert lines[-1] == "📡 Monitored: arXiv 80 · X 12"
+def test_brief_is_a_header_then_one_card_per_story():
+    items = {1: {"media": {"image": "https://pbs.twimg.com/a.jpg", "avatar": "https://pbs.twimg.com/av.jpg"},
+                 "metrics": {"x_likes": 1234, "x_reposts": 56}, "importance": 0.91},
+             2: {"media": {"image": "https://pbs.twimg.com/b.jpg"}, "metrics": {}, "importance": 0.5}}
+    [msg] = brief_messages(brief(3), items, "Thu 5 Nov")
+    assert msg["content"] == "📰 **Robotics brief** · Thu 5 Nov · 3 stories from 120 new items"
+    first, second, third = msg["embeds"]
+    assert first["title"] == "1. Headline 1" and first["url"] == "https://x.com/lab/status/1"
+    assert first["author"] == {"name": "@lab", "url": "https://x.com/lab/status/1",
+                               "icon_url": "https://pbs.twimg.com/av.jpg"}
+    assert first["description"] == "Why it matters.\n[paper: Foo](https://arxiv.org/abs/2611.00001)"
+    assert first["footer"]["text"] == "❤ 1,234 · 🔁 56 · importance 0.91 · 🔥 Auki"
+    assert first["image"]["url"].endswith("a.jpg") and first["color"] != second["color"]  # orange = Auki
+    assert "thumbnail" in second and "image" not in second  # only the top story gets the big picture
+    assert "image" not in third and "thumbnail" not in third and "footer" not in third  # no data: plain card
 
 
-def test_render_brief_splits_at_story_boundaries():
-    msgs = render_brief(brief(10, why="W" * 190), x_monitored=False)
-    assert len(msgs) >= 2 and all(len(m) <= 2000 for m in msgs)
-    assert all(not m.startswith("\n") for m in msgs) and "**10. Headline 10**" in msgs[-1]
+def test_brief_splits_under_discords_embed_limits():
+    msgs = brief_messages(brief(14, why="W" * 210))
+    assert len(msgs) >= 2 and msgs[0]["content"] and msgs[1]["content"] is None
+    assert all(len(m["embeds"]) <= 10 for m in msgs)
+    assert sum(len(m["embeds"]) for m in msgs) == 14
 
 
 def test_ask_reply_cites_sources_and_fits():

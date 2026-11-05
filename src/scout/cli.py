@@ -49,17 +49,19 @@ async def _main(a) -> int:
             for x in r["sources"]:
                 print(f"[{x['n']}] {x['title']} {x['url']}")
         elif a.cmd == "brief":
-            from .bot.format import render_brief
-            from .brief import make_brief
-            from .config import settings
+            from .bot.format import brief_messages
+            from .brief import brief_when, lead_items, make_brief
 
             since = datetime.now(UTC) - timedelta(hours=a.hours) if a.hours else None
             b = await make_brief(since=since, save=not a.dry_run)
             if not b:
                 print("nothing in the window")
             else:
-                msgs = render_brief(b, x_monitored=bool(settings().x_bearer_token))
-                print("\n\n----- (next message) -----\n\n".join(msgs))
+                msgs = brief_messages(b, await lead_items(b), brief_when(b))
+                print(msgs[0]["content"])
+                for m in msgs:
+                    for e in m["embeds"]:
+                        print(f"\n{e['title']}\n  {e['description']}\n  {e.get('footer', {}).get('text', '')}")
                 print(f"\n[{b['n_candidates']} candidates · {b['model']} · ${b['cost_usd']}]", file=sys.stderr)
                 if a.post:
                     await _post_to_feed(msgs)
@@ -78,7 +80,7 @@ async def _main(a) -> int:
     return 0
 
 
-async def _post_to_feed(msgs: list[str]) -> None:
+async def _post_to_feed(msgs: list[dict]) -> None:
     """Post via Discord's REST API with the bot token (no gateway connection needed)."""
     import httpx
 
@@ -89,7 +91,7 @@ async def _post_to_feed(msgs: list[str]) -> None:
         for m in msgs:
             r = await http.post(f"https://discord.com/api/v10/channels/{cfg.discord_feed_channel_id}/messages",
                                 headers={"Authorization": f"Bot {cfg.discord_token}"},
-                                json={"content": m, "flags": 4})  # 4 = suppress link previews
+                                json={k: v for k, v in m.items() if v})
             r.raise_for_status()
 
 

@@ -207,3 +207,18 @@ async def make_brief(since: datetime | None = None, until: datetime | None = Non
 
 async def latest(n: int = 1) -> list[dict]:
     return await db.fetch("select * from briefs order by created_at desc limit %s", n)
+
+
+async def lead_items(b: dict) -> dict[int, dict]:
+    """Media, metrics and importance for every item a brief links to (the Discord cards need them)."""
+    ids = list({lk["item_id"] for st in b["stories"] for lk in st["links"] if lk.get("item_id")})
+    if not ids:
+        return {}
+    rows = await db.fetch("select id, media, metrics, importance from items where id = any(%s)", ids)
+    return {r["id"]: dict(r) for r in rows}
+
+
+def brief_when(b: dict) -> str:
+    from zoneinfo import ZoneInfo
+
+    return f"{b['window_end'].astimezone(ZoneInfo(settings().brief_tz)):%a %-d %b}"

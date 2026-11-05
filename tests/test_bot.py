@@ -1,6 +1,8 @@
 """Bot logic that touches the database: /follow, /unfollow, radar suggestions (the learn step)."""
-from scout.bot.main import brief_due, follow, radar_suggestion, scan_line
-from scout.pipeline.run import RunStats
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
+
+from scout.bot.main import brief_cutoff, brief_due, follow, radar_suggestion
 
 
 async def test_follow_and_unfollow_edit_the_radar(database):
@@ -20,17 +22,18 @@ async def test_radar_suggestion_once_per_account(database):
     assert await radar_suggestion() is None  # noisy: kept rate too low; svlevine: already on the radar
 
 
-def test_scan_line():
-    st = RunStats(fetched=212, gated=170, dropped=28, inserted=14, expanded=6)
-    assert scan_line(st, True) == ("📡 Scanned X: 212 posts → 42 passed the filter → **14 kept** "
-                                   "(+6 papers/repos they link to)")
-    assert scan_line(None, False) == "📡 Scanning X ⏳"
+def test_brief_cutoff_is_the_last_9am_sydney():
+    syd = ZoneInfo("Australia/Sydney")
+    assert brief_cutoff(datetime(2026, 11, 5, 10, 0, tzinfo=syd), 9, "Australia/Sydney") == datetime(2026, 11, 5, 9, tzinfo=syd)
+    assert brief_cutoff(datetime(2026, 11, 5, 8, 0, tzinfo=syd), 9, "Australia/Sydney") == datetime(2026, 11, 4, 9, tzinfo=syd)
+    assert brief_cutoff(datetime(2026, 11, 4, 23, 0, tzinfo=UTC), 9, "Australia/Sydney").hour == 9
 
 
-async def test_brief_cadence(database):
-    assert not await brief_due(6)  # nothing stored yet
+async def test_brief_is_daily(database):
+    tz = "Australia/Sydney"
+    assert not await brief_due(9, tz)  # nothing stored yet
     await database.execute("insert into items (canonical_url, type, title, source) values ('https://x.com/a/status/1', 'post', 't', 'x')")
-    assert await brief_due(6)
+    assert await brief_due(9, tz)
     await database.execute("insert into briefs (window_start, window_end, n_candidates, n_new_items, model, cost_usd, stories, sources) "
                            "values (now() - interval '1 day', now(), 1, 1, 'm', 0, '[]', '{}')")
-    assert not await brief_due(6)  # just posted one
+    assert not await brief_due(9, tz)  # one already posted since today's 9am

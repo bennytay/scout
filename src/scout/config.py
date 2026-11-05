@@ -28,7 +28,8 @@ class Settings(BaseSettings):
     x_api_secret: str | None = None
     x_max_results: int = 100                # max posts read per query per scan (caps credit spend)
     x_every_hours: int = 2                  # how often the bot scans X
-    brief_every_hours: int = 6              # how often the brief is posted (covers everything since the last one)
+    brief_hour: int = 9                     # the daily brief posts at this hour (local time below); /scan any time
+    brief_tz: str = "Australia/Sydney"
     x_discovery_delay_hours: int = 6        # discovery reads posts at least this old, so likes have accrued
     # the gate (discovery posts only; radar accounts are trusted and go straight to the judge)
     x_min_likes: int = 10
