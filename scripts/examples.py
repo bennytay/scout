@@ -11,16 +11,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from scout import db, log, search  # noqa: E402
 from scout.config import settings  # noqa: E402
 
-ASK = [
-    "What's new this week in visual localization or relocalization?",
-    "Which recent papers build 3D scene graphs for robot memory?",
-    "What are people releasing for humanoid whole-body control?",
-    "Anything on multiple robots sharing a map?",
+ASK = [  # what someone would type after @Scout
+    "What's new in humanoids this week, and who announced it?",
+    "What did ETH's legged robotics people post about navigation, and is there code?",
+    "Any new vision-language-action models I can actually download?",
+    "Anything on robots sharing maps or relocalizing?",
 ]
-SEARCH = [
-    dict(query="vision-language-action", since="7d", limit=5),
-    dict(topic="slam-spatial-mapping", min_relevance=0.7, limit=5),
-    dict(type="repo", topic="manipulation", limit=5),
+SEARCH = [  # what /topic and /author run (no LLM)
+    dict(topic="humanoids", since="3d", limit=6),
+    dict(author="levine", limit=5),
+    dict(query="world model", type="post", limit=5),
 ]
 
 
@@ -34,7 +34,7 @@ async def main():
            f"(LLM `{llm}`, embeddings `{emb}`). Re-run any time._", ""]
     for q in ASK:
         r = await search.ask(q)
-        out += [f"## /ask {q}", "", r["answer"], ""]
+        out += [f"## @Scout {q}", "", r["answer"], ""]
         out += [f"{x['n']}. [{x['title']}]({x['url']})" for x in r["sources"][:6]] + [""]
     for kw in SEARCH:
         rows = await search.search(**kw)
@@ -42,9 +42,12 @@ async def main():
                 "| # | item | type | topics | Auki relevance |", "|---|---|---|---|---|"]
         out += [f"| {n} | [{r['title'][:90]}]({r['url']}) | {r['type']} | {', '.join(r.get('topics', []))} | "
                 f"{r.get('auki_relevance', '–')} |" for n, r in enumerate(rows, 1)] + [""]
-    tr = await search.trending(days=7, limit=5)
-    out += ["## `trending(days=7)`", "", "| item | sources | score |", "|---|---|---|"]
-    out += [f"| [{r['title'][:90]}]({r['url']}) | {', '.join(r.get('seen_in', []))} | {r['trend_score']} |" for r in tr]
+    r = await search.recent(days=3)
+    out += ["## `/recent 3` (what's stored)", "", f"{r['total']} items stored; last 3 days: "
+            + ", ".join(f"{n} {t}s" for t, n in r["by_type"].items()), ""]
+    links = await search.linked([i["id"] for i in r["top"]])
+    out += [f"- [{i['title'][:100]}]({i['url']})" + "".join(f" → [{lk['type']}]({lk['url']})" for lk in links[i["id"]])
+            for i in r["top"]]
     Path("docs/examples.md").write_text("\n".join(out) + "\n")
     print("\n".join(out[:30]))
     await db.close()

@@ -146,3 +146,37 @@ the vector and fuzzy rankers too (before, `-aerial` still returned an aerial pap
 Tried and rejected: letting long questions match on *any* word. Even ranked after all-word matches, it cost
 P@5 0.85 → 0.80 on the eval set, because weak lexical hits compound with vector hits in RRF. Paraphrased
 questions are the vector ranker's job.
+
+### D23. X-first: X is the only scheduled source; arXiv / GitHub / HF become resolvers (supersedes D19–D21's source list)
+Robotics news breaks on X. A lab posts the paper, the demo video and the repo; arXiv and GitHub are where the
+details live, not where the news is. So Scout scans only X on a schedule, and fetches the arXiv paper, GitHub
+repo or HF model **because a kept post links to it** (at most 3 per post, linked post → paper). Hacker News,
+RSS and alphaXiv were deleted rather than kept "just in case": every extra source is more noise for the brief
+and more code to maintain. Their old `sources` rows stay in the table, disabled, for history.
+
+### D24. The X signal funnel: cheap before expensive, precision over recall
+X is mostly noise, so the order is: query design → free rules → a Haiku label → an Opus editor.
+- **Radar** accounts are packed into `from:` OR-queries under the 512-character limit (verified against
+  the API). 64 accounts take 3 requests. Per-source `until` cursors mean every post is read, and paid for, once.
+  Radar accounts are trusted: they skip the rules and go to the judge.
+- **Discovery** only searches for posts that link to research. A research link is the cheapest strong
+  anti-spam signal. It reads a window ending 6h ago, so engagement exists before the gate judges it.
+- **Gate** (pure, unit-tested): spam lexicon, research link, ≥10 likes, and below 50 likes also ≥200 followers
+  and ≥90-day account age. Plus a per-author cap and copy-paste dedupe. Thresholds were set from one real
+  scan and live in config.
+- **Judge**: a `signal` field added to the existing enrichment call (news | discussion | promo | off_topic |
+  noise), so there's no second LLM call. Posts the team shares in Discord are never judged out.
+- **Learn**: per-account kept/judged counts. A non-radar account with ≥3 kept posts and a ≥50% kept rate is
+  suggested once. A human runs `/follow`; the radar never edits itself.
+- **Measured** on 62 real posts labelled by content alone: precision 1.00. Recall is 1.00 for radar and 0.16
+  for discovery, because the misses are mostly arXiv-mirror bots with no engagement. That trade-off is
+  intended: the brief wants what people are discussing. It's published, not hidden.
+- Scan every 2h, brief every 6h, so the feed isn't spammed.
+
+### D25. No dashboard: one search, filled in by Claude or by a slash command (supersedes D21)
+The web UI was removed. "Search by author and topic" doesn't need a second interface. It's the same `search()`
+with structured fields. For questions, Claude fills them (`ask`: plan → search → cited answer, topped up with
+a plain search when the filters were too strict). For lookups, Discord slash commands fill them with no LLM:
+`/author` (autocomplete from the authors table, word-start matches first), `/topic`, and `/recent`, which
+answers "what's stored?". MCP was trimmed to 4 tools for the same reason: `author_profile`, `trending` and
+`digest` were just search with extra steps. The OpenAI adapters went too (Claude only).

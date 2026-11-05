@@ -1,106 +1,114 @@
 # Example questions and real answers
 
-_Generated 2026-11-05 01:50 by `scripts/examples.py` against the live database (LLM `anthropic:claude-haiku-5-5`, embeddings `local:BAAI/bge-small-en-v1.5`). Re-run any time._
+_Generated 2026-11-05 15:34 by `scripts/examples.py` against the live database (LLM `anthropic:claude-haiku-5-5`, embeddings `local:BAAI/bge-small-en-v1.5`). Re-run any time._
 
-## /ask What's new this week in visual localization or relocalization?
+## @Scout What's new in humanoids this week, and who announced it?
 
-This week's visual localization and relocalization papers are mostly from 2026-10-30 to 2026-11-03. The most directly relevant:
+This week's humanoid news in the provided sources (dated Nov 3–4, 2026):
 
-- **Ray-SCR** lets one scene map localize pinhole, fisheye, and omnidirectional cameras [7]. Cross-camera relocalization against a single persistent map is a core posemesh problem.
-- **PGGT-Loc** estimates 6-DoF pose from a single image by grounding it to existing planar map primitives, without a dedicated localization map [5]. This could reduce the cost of mapping for posemesh-style deployments.
-- **RingMatch** does wide-area ground-to-aerial localization over regions up to 400 m, using coarse-to-fine search and a verifier [3]. It targets outdoor aerial maps rather than indoor venues.
-- **LoD-Loc v4** registers aerial images against a panoptic 3D map built from OpenStreetMap, DEMs, and LoD assets, and still works in sparse rural areas [1].
-- **CoReMatch** is a real-time feature matcher that reports higher accuracy than Efficient LoFTR and more than 10x faster speed on embedded hardware [4]. Fast matching on edge devices supports the visual localization and SLAM that shared spatial understanding depends on.
-- **PadLoc** localizes a sensor in a known floor plan without training, and a camera-only rig works on several construction-floor sessions [6]. It is single-device, but it is close to indoor visual positioning.
+- **Agility Robotics** completed its SPAC merger with Churchill Capital Corp XI. Its stock and warrants are expected to trade on Nasdaq on Nov 5 as AGLT and AGLTW [3].
+- **Xiaomi**, as reported by CyberRobo, says its CyberOne 02 humanoids worked 8 consecutive hours sorting and placing parts alongside AMRs at a Xiaomi EV factory. The post gives no independent metrics or video [6]. This is the most relevant item for Auki, since multi-robot indoor deployments like this need shared spatial understanding, though the source doesn't address mapping or localization.
+- **Unitree Robotics** announced support for RoboColosseum, a real-world robotics bench
 
-Two other papers are only tangential: MoSoLoco localizes people from a monocular camera per frame, with no shared map [2], and ReconSpatial benchmarks multi-view metric reasoning in vision-language models rather than mapping or relocalization [8].
+1. [@UnitreeRobotics: Excited to support RoboColosseum, one of the largest in-the-wild real-world robotics benchmark project! Great to see…](https://x.com/UnitreeRobotics/status/2117996574584574130)
+2. [@leggedrobotics: In our latest work @corl_conf, we present ADAPT: an end-to-end framework for interactive, text-conditioned humanoid…](https://x.com/leggedrobotics/status/2117564271249051665)
+3. [@agilityrobotics: Agility Robotics has completed its business combination with Churchill Capital Corp XI. Our common stock and warrants…](https://x.com/agilityrobotics/status/2118097240791339141)
+4. [@danielpmorton: Humanoid retargeting and IK in microseconds [no GPU required] Orders of magnitude speedups, with perfect contact…](https://x.com/danielpmorton/status/2118026028572680195)
+5. [@lukas_m_ziegler: What a week in robotics. I summarized the most important news from the physical AI space. → Tesla is building Optimus…](https://x.com/lukas_m_ziegler/status/2117657514372194386)
+6. [@CyberRobooo: A humanoid worker putting in an 8-hour shift. Xiaomi announced that its CyberOne 02 humanoid robots completed 8…](https://x.com/CyberRobooo/status/2117532860785795389)
 
-1. [LoD-Loc v4: Towards Generalized Aerial Visual Localization via Panoptic LoD 3D Map Registration](https://arxiv.org/abs/2611.00704)
-2. [MoSoLoco: Monocular 3D Human Localization through Visual Latent Features and Social Context](https://arxiv.org/abs/2611.03189)
+## @Scout What did ETH's legged robotics people post about navigation, and is there code?
+
+ETH's Robotic Systems Lab posted about **WayTrace**, a navigation system that takes a legged robot from web-map directions to real-world missions. Their post says an off-the-shelf VLM, an onboard trace model, and an RL locomotion policy completed 2.35 km of missions in Zurich, but it only gives the headline and points to a thread for details [3]. The WayTrace paper, by ETH authors Patel, Frey, Roth, and Hutter, reports missions of up to 1.37 km at about 1.1 m/s on a wheeled-legged robot, and about ten times fewer violations than point-goal baselines in simulation [2]. The 2.35 km and 1.37 km figures don't match, so check which is correct before citing either.
+
+I found no code for WayTrace in the sources. The only ETH legged-robotics code release is **Terrain-Grounded Imagination** [1], which trains a Unitree G1 humanoid to cross stairs, gaps, and stepping stones. It's a locomotion method rather than a navigation system, and its repo is at github.com/leggedrobotics/terrain-grounded-imagination [1].
+
+For Auki, WayTrace is adjacent to spatial understanding because it uses map and camera context outdoors, but neither WayTrace nor TGI addresses shared or persistent maps, which is the core posemesh problem [1][2].
+
+1. [leggedrobotics/terrain-grounded-imagination: Terrain Grounded Imagination: a recipe for training humanoid locomotion on sparse and rough terrain through a world model with differentiable heightmap lookups.](https://github.com/leggedrobotics/terrain-grounded-imagination)
+2. [WayTrace: A Map-to-Language-to-Trace Hierarchy for Embodied Urban Navigation](https://arxiv.org/abs/2611.05129)
+3. [@leggedrobotics: Our new work WayTrace: an off-the-shelf VLM, an onboard trace model, and an RL policy take a robot from web-map…](https://x.com/leggedrobotics/status/2117991786983596126)
+4. [A-Uta/StackChan_Minimal: Small AI companion robot firmware for M5Stack AtomS3R using local STT, LLM, and TTS services.](https://github.com/a-uta/stackchan_minimal)
+5. [@IlirAliu_: An open robot eval initiative by @huggingface, @BitRobotNetwork, @eaic_sg and my good friend @DJiafei... Introducing…](https://x.com/IlirAliu_/status/2117993868306403356)
+6. [Caging Vision-Language Navigation for Legged Robots via Barrier-Certified Safety Architecture](https://arxiv.org/abs/2611.04972)
+
+## @Scout Any new vision-language-action models I can actually download?
+
+The sources list several Hugging Face model pages that could be VLA or robot policy checkpoints, but none include a description, weights details, or license, so I can't confirm you can download them. The strongest candidates are:
+
+- **FineART-VLA-subtask-midtrained** (LeRobot): described as a vision-language-action checkpoint, though its architecture and results are unconfirmed [7].
+- **Jocasta-diff-VLA** (RobotLearningLab): described as a diffusion-based VLA model [1].
+- **flux-3-action-so101** (Black Forest Labs): likely a robot action model for the SO-101 arm, but unverified [8].
+- **v0.5-libero** (vernerobotics): probably a policy for the LIBERO manipulation benchmark, but its purpose is unconfirmed [2].
+
+Others with unclear purpose include wall-oss-1.0-lite-robodojo [5], microduck-policies [6], SenseNova RoboRSI-27B Preview [3], and flux-3-action-base [4]. Check each repo's model card and license directly before relying on any of them.
+
+For Auki, none of these sources show spatial mapping, localization, or multi-device features, so they are general embodied AI context rather than posemesh-relevant tools.
+
+1. [RobotLearningLab/Jocasta-diff-VLA](https://huggingface.co/RobotLearningLab/Jocasta-diff-VLA)
+2. [vernerobotics/v0.5-libero](https://huggingface.co/vernerobotics/v0.5-libero)
+3. [sensenova/sensenova-roborsi-27b-preview](https://huggingface.co/sensenova/sensenova-roborsi-27b-preview)
+4. [black-forest-labs/flux-3-action-base](https://huggingface.co/black-forest-labs/flux-3-action-base)
+5. [x-square-robot/wall-oss-1.0-lite-robodojo](https://huggingface.co/x-square-robot/wall-oss-1.0-lite-robodojo)
+6. [pollen-robotics/microduck-policies](https://huggingface.co/pollen-robotics/microduck-policies)
+
+## @Scout Anything on robots sharing maps or relocalizing?
+
+Yes, two sources are directly on point, though neither describes multiple robots sharing a live map.
+
+- **Sparse Anchors for Visual Multi-Session Registration [2]** is the closest match. It registers a new robot recording session to a previously built visual reference map in changing environments, reaching 94.4% recall within 1m on HILTI26 construction-site data. For Auki, this is the kind of persistent-map relocalization that posemesh visual positioning depends on.
+- **PadLoc [1]** localizes a moving sensor within a known floor plan using a compact state and no training. Reported results include 100% SR@1m on a static Bonn LiLocBench sequence. It relocalizes against a fixed map rather than one built collaboratively, but it targets the same indoor problem.
+- **RingMatch [3]** handles ground-camera relocalization against aerial imagery over large outdoor regions. It is a weaker fit for Auki's indoor venue focus.
+
+1. [PadLoc: Training-Free Floor-Plan Localization by Sparse Geometric Matching](https://arxiv.org/abs/2611.05172)
+2. [Sparse Anchors for Visual Multi-Session Registration in Changing Environments](https://arxiv.org/abs/2611.05084)
 3. [Beyond Local Refinement: Wide-Area Precise Cross-View Localization](https://arxiv.org/abs/2611.04759)
-4. [CoReMatch: Recurrent Continuous Coordinate Refinement for Real-Time Robotic Feature Matching](https://arxiv.org/abs/2611.03932)
-5. [PGGT-Loc: Primitive-Grounded Geometry Transformer for Feed-Forward Camera Localization](https://arxiv.org/abs/2610.41833)
-6. [PadLoc: Training-Free Floor-Plan Localization by Sparse Geometric Matching](https://arxiv.org/abs/2611.05172)
+4. [EndoS3:Endoscopic Semantic Splatting SLAM](https://arxiv.org/abs/2611.04358)
+5. [ReSMap: Recasting Satellite Priors for Robust and Accurate Online HD Map Construction](https://arxiv.org/abs/2611.04352)
+6. [@leggedrobotics: Our new work WayTrace: an off-the-shelf VLM, an onboard trace model, and an RL policy take a robot from web-map…](https://x.com/leggedrobotics/status/2117991786983596126)
 
-## /ask Which recent papers build 3D scene graphs for robot memory?
-
-Only one source, [1], directly involves a scene-graph memory for a robot. It is a diagnostic study of whether a fine-tuned vision-language model actually uses a scene-graph memory of a robot's route. It finds that text-delivered memory is used strongly (+30 points on route questions), while standard graph encoders lose information, and giving each node its own input token recovers 8.3 points [1]. This is adjacent to Auki's shared spatial maps, but it covers single-agent question answering, not multi-device localization [1].
-
-The other papers use related but different memory representations:
-- [6] maintains per-part physical beliefs in a "robot scene map" for articulated objects, but it is single-robot and not described as a scene graph [6].
-- [8] builds a shared 3D voxel belief field for object search on a mobile humanoid, again single-robot [8].
-- [2], [4], and [3] store spatial memory for reconstruction or world generation rather than robot task memory [2][4][3].
-
-1. [Do Embodied VLMs Actually Use Their Scene-Graph Memory?](https://arxiv.org/abs/2611.02056)
-2. [Mamba3R: Fixed-Capacity Selective State Memory for Long-Sequence 3D Reconstruction](https://arxiv.org/abs/2611.04221)
-3. [L3G-World: Real-Time Infinite World Generation with Latent 3D Gaussian Memory](https://arxiv.org/abs/2610.40614)
-4. [SceneBound: How Much Should a Streaming 3D Reconstruction Model Remember?](https://arxiv.org/abs/2611.00756)
-5. [LucidLyra: Feed-Forward Generative 3D Scene Reconstruction and Joint Understanding via Multi-Task Distillation](https://arxiv.org/abs/2610.40495)
-6. [PhysVLMM: Interaction-Conditioned Physical Belief Maps for Articulated Objects in Robot Scene Maps](https://arxiv.org/abs/2610.40539)
-
-## /ask What are people releasing for humanoid whole-body control?
-
-Recent releases cover several approaches to humanoid whole-body control, all as arXiv papers:
-
-- **Model-based locomotion:** An online iLQR-MPC controller for push recovery on the Unitree G1, with a 500 Hz whole-body controller and no platform-specific policy training [1].
-- **Precise manipulation:** Anchor 1 from Archon Robotics, a controller using sparse human motion references that reports 30% to 80% lower tracking error in the strictest real-world setting [2].
-- **Motion tracking:** DiffWBC, a one-step diffusion controller with test-time steering and simulation-free failure detection, deployed on a Unitree G1 [3].
-- **Tactile reflexes:** ReflexArc, which adds a 10 ms tactile withdrawal pathway to learned policies and cuts the first force peak by 34.1% on a G1 [4].
-- **Compliance:** CompliantBot, a training framework that teaches humanoids to yield to pushes and pulls while resuming their tasks [5].
-- **Mobile manipulation:** Pixel, a full-stack system built around a low-cost wheeled humanoid with a unified whole-body controller and robot-free human demonstrations [6].
-- **Loco-manipulation:** HLO-AMP, a hierarchical framework using object-aware motion priors for bimanual pick-and-place on a G1 [7], and ReGATE, a visual-fusion controller for reactive humanoid-object interaction that still grasps when the camera is occluded [8].
-
-For Auki, none of these papers addresses spatial mapping, localization, or shared multi-device understanding. They are useful background on where humanoid platforms are heading, which is the context in which spatial infrastructure like the posemesh would matter.
-
-1. [Online iLQR-MPC with Whole-Body Control for Robust Humanoid Locomotion](https://arxiv.org/abs/2611.04204)
-2. [Anchor 1: Precise and Stable Humanoid Control for Whole-Body Manipulation](https://arxiv.org/abs/2611.00193)
-3. [DiffWBC: Unlocking Steerable General Humanoid Motion Tracking via One-Step Diffusion Whole-Body Control](https://arxiv.org/abs/2610.41354)
-4. [ReflexArc: Bottom-Up Integration of Instantaneous Tactile Reflexes into Whole-Body Humanoid Control](https://arxiv.org/abs/2611.04424)
-5. [CompliantBot: Learning Whole-Body Compliance across Task Interfaces for Humanoid Control](https://arxiv.org/abs/2611.01748)
-6. [Pixel: A Co-Designed Full-Stack Robot System for Learning General-Purpose Mobile Manipulation](https://arxiv.org/abs/2611.03648)
-
-## /ask Anything on multiple robots sharing a map?
-
-None of the sources directly address multiple robots sharing a map. The closest is [4], CONSORT, which covers cooperative localization for multiple robots in GPS-denied settings and plans for localization uncertainty. That touches the shared spatial understanding problem posemesh targets, but the tests were marine and the work is about planning, not a shared map. [2] and [1] are adjacent: [2] keeps a line-of-sight relay chain connected, and [1] maintains connectivity using each agent's local sensor measurements, but neither involves maps or localization. [3], [5], [7], and [8] are fleet coordination work that either plans on a known map or assumes known poses. [6] is a purely analytical two-robot trajectory result.
-
-1. [Haptic Shared Control for Multi-Robot Systems](https://arxiv.org/abs/2611.05027)
-2. [Nested Field-of-View Barriers for Teleoperated Multi-Robot Relay Chains](https://arxiv.org/abs/2611.05074)
-3. [Local Solution Repair for Multi-Agent Pickup and Delivery](https://arxiv.org/abs/2611.02090)
-4. [CONSORT: Uncertainty-Constrained Multi-Robot Planning for Cooperative Localization in GPS-Denied Environments](https://arxiv.org/abs/2610.41235)
-5. [Late Autumn: LLM Agents Specialize a General Multi-Robot Planner for One Warehouse](https://arxiv.org/abs/2611.02391)
-6. [A complete analytical characterization of optimal collision-free motion for two robots](https://arxiv.org/abs/2610.41558)
-
-## `search(query='vision-language-action', since='7d', limit=5)`
+## `search(topic='humanoids', since='3d', limit=6)`
 
 | # | item | type | topics | Auki relevance |
 |---|---|---|---|---|
-| 1 | [From Reasoning to Action: Consequence-Grounded Alignment for Vision-Language-Action Models](https://arxiv.org/abs/2610.39543) | paper | vla-foundation-models, manipulation | 0.45 |
-| 2 | [RoboSeed: Multidimensional Evaluation of Vision-Language-Action and World-Action Models: C](https://arxiv.org/abs/2610.40026) | paper | vla-foundation-models, datasets-benchmarks | 0.45 |
-| 3 | [HiFOR: Hierarchical Foresight with Action-Guided World Grounding for Vision-Language-Actio](https://arxiv.org/abs/2610.40373) | paper | vla-foundation-models, manipulation | 0.45 |
-| 4 | [CalVLA: Shaping Native Confidence in Vision-Language-Action Policies with Outcome Supervis](https://arxiv.org/abs/2611.00394) | paper | vla-foundation-models, manipulation | 0.3 |
-| 5 | [OpenFlyV2: An onboard vision-language-action model for aerial perception and navigation](https://arxiv.org/abs/2610.39287) | paper | vla-foundation-models, locomotion, sim2real | 0.6 |
+| 1 | [@CyberRobooo: Clone Robotics is no longer alone. Researchers at the University of Tokyo ar](https://x.com/CyberRobooo/status/2118153071435915381) | post | humanoids, hardware | 0.35 |
+| 2 | [@CyberRobooo: Big step… Robots needs large-scale real-world testing. RoboColosseum is buil](https://x.com/CyberRobooo/status/2118124506158133748) | post | datasets-benchmarks, humanoids | 0.5 |
+| 3 | [@agilityrobotics: Agility Robotics has completed its business combination with Churchill C](https://x.com/agilityrobotics/status/2118097240791339141) | post | humanoids, other | 0.4 |
+| 4 | [@danielpmorton: Humanoid retargeting and IK in microseconds [no GPU required] Orders of ma](https://x.com/danielpmorton/status/2118026028572680195) | post | humanoids, manipulation | 0.3 |
+| 5 | [@UnitreeRobotics: Excited to support RoboColosseum, one of the largest in-the-wild real-wo](https://x.com/UnitreeRobotics/status/2117996574584574130) | post | datasets-benchmarks, humanoids | 0.5 |
+| 6 | [@MatthiasCaro: How do you train a humanoid on sparse terrain inside a world model? Terrain](https://x.com/MatthiasCaro/status/2117980846825390167) | post | humanoids, sim2real | 0.45 |
 
-## `search(topic='slam-spatial-mapping', min_relevance=0.7, limit=5)`
-
-| # | item | type | topics | Auki relevance |
-|---|---|---|---|---|
-| 1 | [PadLoc: Training-Free Floor-Plan Localization by Sparse Geometric Matching](https://arxiv.org/abs/2611.05172) | paper | slam-spatial-mapping, perception | 0.8 |
-| 2 | [Sparse Anchors for Visual Multi-Session Registration in Changing Environments](https://arxiv.org/abs/2611.05084) | paper | slam-spatial-mapping, perception | 0.92 |
-| 3 | [Beyond Local Refinement: Wide-Area Precise Cross-View Localization](https://arxiv.org/abs/2611.04759) | paper | slam-spatial-mapping, perception | 0.8 |
-| 4 | [EndoS3:Endoscopic Semantic Splatting SLAM](https://arxiv.org/abs/2611.04358) | paper | slam-spatial-mapping, datasets-benchmarks | 0.72 |
-| 5 | [Mamba3R: Fixed-Capacity Selective State Memory for Long-Sequence 3D Reconstruction](https://arxiv.org/abs/2611.04221) | paper | slam-spatial-mapping, perception | 0.8 |
-
-## `search(type='repo', topic='manipulation', limit=5)`
+## `search(author='levine', limit=5)`
 
 | # | item | type | topics | Auki relevance |
 |---|---|---|---|---|
+| 1 | [@svlevine: When running RL with prior data, a behavior constraint is important to trade of](https://x.com/svlevine/status/2118192498652991753) | post | other | 0.4 |
+| 2 | [@svlevine: Distributional flow RL where we enforce Bellman consistency not just on the val](https://x.com/svlevine/status/2117824001565479007) | post | other | 0.25 |
+| 3 | [GSBR: Geometric Support Behavior Regularization for Online RL](https://arxiv.org/abs/2611.05295) | paper | manipulation | 0.4 |
+| 4 | [@svlevine: RL can help collect good data, whether you're doing BC or RL. It can also stack](https://x.com/svlevine/status/2117479583511716285) | post | manipulation, datasets-benchmarks | 0.5 |
+| 5 | [Value Forcing: Aligning Return Distributions at All Noise Levels](https://arxiv.org/abs/2611.02160) | paper | other, datasets-benchmarks | 0.2 |
 
-## `trending(days=7)`
+## `search(query='world model', type='post', limit=5)`
 
-| item | sources | score |
-|---|---|---|
-| [Democratizing Robot-Use Agents: A Unified Harness with Open Models](https://arxiv.org/abs/2611.01560) | alphaxiv, arxiv, huggingface | 10.88 |
-| [DreamX: Video Diffusion Model is a Universal Latent Action Learner](https://arxiv.org/abs/2611.05377) | alphaxiv, arxiv, huggingface | 9.14 |
-| [RoboColosseum: Evaluating Physical Intelligence at Scale In-The-Wild](https://arxiv.org/abs/2611.02497) | alphaxiv, arxiv, huggingface | 8.68 |
-| [Show HN: HackerBooks – HackerTube, but for books mentioned on HN](https://hackerbooks.org) | hackernews | 7.62 |
-| [Stringman, an $800 open-source room scale gripper robot](https://neufangled.com) | hackernews | 7.51 |
+| # | item | type | topics | Auki relevance |
+|---|---|---|---|---|
+| 1 | [@IlirAliu_: What a 3D World Simulator!! 🤯 Play w/ the world model: [📌 GitHub below] A supe](https://x.com/IlirAliu_/status/2117903979770261925) | post | sim2real, vla-foundation-models | 0.5 |
+| 2 | [@MatthiasCaro: How do you train a humanoid on sparse terrain inside a world model? Terrain](https://x.com/MatthiasCaro/status/2117980846825390167) | post | humanoids, sim2real | 0.45 |
+| 3 | [@TheHumanoidHub: An AI model that helps transfer human motion, recorded with LiberSense Gl](https://x.com/TheHumanoidHub/status/2118046959613403552) | post | vla-foundation-models, manipulation | 0.45 |
+| 4 | [@YunzhuLiYZ: A closer look at the interactive demo of our 3D World Simulator 🤖 You can con](https://x.com/YunzhuLiYZ/status/2117628499045609519) | post | sim2real, manipulation | 0.5 |
+| 5 | [@CyberRobooo: CyberOne 02 is putting in shifts at Xiaomi’s EV factory. Its physical AI mod](https://x.com/CyberRobooo/status/2117617539392119162) | post | vla-foundation-models, manipulation | 0.55 |
+
+## `/recent 3` (what's stored)
+
+362 items stored; last 3 days: 256 papers, 39 posts, 30 models, 19 datasets, 10 articles, 8 repos
+
+- [@CyberRobooo: A humanoid worker putting in an 8-hour shift. Xiaomi announced that its CyberOne 02 hu](https://x.com/CyberRobooo/status/2117532860785795389)
+- [@BostonDynamics: We're thrilled to announce Stretch Gen 2, the next generation of our autonomous mob](https://x.com/BostonDynamics/status/2117663862564573240)
+- [@mateoguaman: Kilometer-level navigation is super hard, especially in a city where a robot can encou](https://x.com/mateoguaman/status/2118013079547986228)
+- [@leggedrobotics: Our new work WayTrace: an off-the-shelf VLM, an onboard trace model, and an RL poli](https://x.com/leggedrobotics/status/2117991786983596126)
+- [@lukas_m_ziegler: 🚨 BREAKING: @tutorintel has raised $75M in Series B funding led by Andreessen Horo](https://x.com/lukas_m_ziegler/status/2117533011805716674)
+- [@CyberRobooo: CyberOne 02 is putting in shifts at Xiaomi’s EV factory. Its physical AI model is now ](https://x.com/CyberRobooo/status/2117617539392119162)
+- [@CyberRobooo: China’s humanoid worker on a South Korean auto injection line Korean company IL ran a ](https://x.com/CyberRobooo/status/2117977112913314184)
+- [@CyberRobooo: Big step… Robots needs large-scale real-world testing. RoboColosseum is building a dis](https://x.com/CyberRobooo/status/2118124506158133748)
+- [@CyberRobooo: Robots are starting to maintain their own memory centers. As AI scales, data centers a](https://x.com/CyberRobooo/status/2117952574339092719)
+- [@IlirAliu_: What a 3D World Simulator!! 🤯 Play w/ the world model: [📌 GitHub below] A super-fast int](https://x.com/IlirAliu_/status/2117903979770261925)
