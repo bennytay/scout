@@ -34,10 +34,6 @@ class Settings(BaseSettings):
         None, validation_alias=AliasChoices("discord_feed_channel_id", "discord_alerts_channel_id"))
     discord_alerts_webhook_url: str | None = None  # lets a cron job post health problems without the bot
 
-    # Web UI (search + maintenance). Local by default; set WEB_PASSWORD before exposing it.
-    web_host: str = "127.0.0.1"
-    web_port: int = Field(8000, validation_alias=AliasChoices("web_port", "port"))  # PORT for hosts/previews
-    web_password: str | None = None
 
     # MCP over HTTP
     mcp_bearer_token: str | None = None

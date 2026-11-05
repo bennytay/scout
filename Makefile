@@ -1,4 +1,4 @@
-.PHONY: setup db migrate test eval bot web mcp mcp-http ingest demo
+.PHONY: setup db migrate test eval bot mcp mcp-http ingest demo
 
 setup: db           ## local Postgres, deps, schema, a week of data (quiet: no Discord posts)
 	uv sync
@@ -24,9 +24,6 @@ eval:
 
 bot:
 	uv run scout bot
-
-web:               ## search + maintain the database at http://127.0.0.1:8000
-	uv run scout web
 
 mcp:
 	uv run scout mcp

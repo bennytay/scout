@@ -156,7 +156,6 @@ def main() -> None:
     m = sub.add_parser("mcp", help="run the MCP server")
     m.add_argument("--http", action="store_true", help="streamable HTTP with bearer auth (default stdio)")
     sub.add_parser("bot", help="run the Discord bot: monitors every source and posts the feed")
-    sub.add_parser("web", help="run the web UI: search and maintain the database (http://127.0.0.1:8000)")
     a = p.parse_args()
 
     log.setup()
@@ -164,12 +163,6 @@ def main() -> None:
         from . import mcp_server
 
         mcp_server.run_http() if a.http else mcp_server.run_stdio()
-        return
-    if a.cmd == "web":
-        from .web.app import run as run_web
-
-        asyncio.run(db.migrate())
-        run_web()
         return
     if a.cmd == "bot":
         from .bot.main import run
