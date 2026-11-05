@@ -48,8 +48,6 @@ async def _main(a) -> int:
             print(r["answer"] + "\n")
             for x in r["sources"]:
                 print(f"[{x['n']}] {x['title']} {x['url']}")
-        elif a.cmd == "trending":
-            _print(await search.trending(a.topic, a.days))
         elif a.cmd == "brief":
             from .bot.format import render_brief
             from .brief import make_brief
@@ -141,9 +139,6 @@ def main() -> None:
     se.add_argument("--limit", type=int, default=10)
     ak = sub.add_parser("ask")
     ak.add_argument("question")
-    tr = sub.add_parser("trending")
-    tr.add_argument("--topic")
-    tr.add_argument("--days", type=int, default=7)
     br = sub.add_parser("brief", help="write the news brief (top 7-10 stories) for the window")
     br.add_argument("--hours", type=int, help="window length (default: since the last brief)")
     br.add_argument("--dry-run", action="store_true", help="don't save it")

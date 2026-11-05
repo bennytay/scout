@@ -1,4 +1,4 @@
-"""Read side: hybrid search, item detail, related items, author profiles, trending, digest, /ask.
+"""Read side: hybrid search, item detail, related items, author profiles, /ask.
 
 Shared by the MCP server and the Discord bot, so both always give the same answers.
 """
@@ -174,52 +174,6 @@ async def author_profile(name: str) -> dict | None:
         "recent_items": [_clean({k: i[k] for k in ("id", "title", "url", "type", "published_at")})
                          for i in await hydrate([r["id"] for r in items])],
     })
-
-
-TRENDING_SQL = """
-with w as (
-  select i.id,
-         (select count(distinct s.source) from item_sources s where s.item_id = i.id) as n_sources,
-         ln(1 + coalesce((i.metrics->>'hf_upvotes')::float, 0))
-       + ln(1 + coalesce((i.metrics->>'hn_points')::float, 0))
-       + 0.5 * ln(1 + coalesce((i.metrics->>'gh_stars')::float, 0))
-       + 0.5 * ln(1 + coalesce((i.metrics->>'x_likes')::float, 0))
-       + ln(1 + coalesce((i.metrics->>'ax_votes')::float, 0)) as buzz,
-         coalesce(i.auki_relevance, 0) as rel
-  from items i
-  where coalesce(i.published_at, i.ingested_at) >= now() - make_interval(days => %s)
-    and (%s::text is null or exists (select 1 from item_topics t where t.item_id = i.id and t.topic_slug = %s))
-)
-select id, buzz + 1.5 * (n_sources - 1) + 2 * rel as score, n_sources
-from w order by score desc limit %s
-"""
-
-
-async def trending(topic: str | None = None, days: int = 7, limit: int = 10) -> list[dict]:
-    slug = resolve_topic(topic)
-    rows = await db.fetch(TRENDING_SQL, days, slug, slug, limit)
-    meta = {r["id"]: r for r in rows}
-    return [_clean({**i, "trend_score": round(float(meta[i["id"]]["score"]), 2),
-                    "n_sources": meta[i["id"]]["n_sources"]})
-            for i in await hydrate([r["id"] for r in rows])]
-
-
-async def digest(days: int = 7) -> dict:
-    stats = await db.fetchrow(
-        """select count(*) as items, count(*) filter (where submitted_by is not null) as team_shared,
-                  coalesce(sum(cost_usd), 0)::float as cost_usd
-           from items where ingested_at >= now() - make_interval(days => %s)""", days)
-    by_topic = await db.fetch(
-        """select t.topic_slug as topic, count(*) as n from items i join item_topics t on t.item_id = i.id
-           where i.ingested_at >= now() - make_interval(days => %s) group by 1 order by 2 desc""", days)
-    top = await db.fetch(
-        """select id from items where coalesce(published_at, ingested_at) >= now() - make_interval(days => %s)
-           order by auki_relevance desc nulls last limit 8""", days)
-    return {
-        "window_days": days, "stats": _clean(dict(stats)), "by_topic": by_topic,
-        "most_relevant_to_auki": [_clean(i) for i in await hydrate([r["id"] for r in top])],
-        "trending": await trending(days=days, limit=8),
-    }
 
 
 # ---------- /ask: natural-language question → filters → search → cited answer ----------

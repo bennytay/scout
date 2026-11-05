@@ -59,16 +59,12 @@ async def test_topic_type_and_since_filters(database):
     assert ids[2] not in recent and ids[0] in recent
 
 
-async def test_related_author_profile_trending(database):
+async def test_related_and_author_profile(database):
     ids = await seed()
     rel = await search.find_related(ids[0])
     assert rel and all("url" in r for r in rel)
     prof = await search.author_profile("levine")
     assert prof["name"] == "Sergey Levine" and prof["recent_items"][0]["id"] == ids[0]
-    tr = await search.trending(days=10)
-    assert ids[2] not in [t["id"] for t in tr]  # 40 days old
-    d = await search.digest(7)
-    assert d["stats"]["items"] == 5
 
 
 async def test_ask_cites_sources(database):

@@ -16,7 +16,8 @@ mcp = MCPServer(
     instructions=(
         "Scout is Auki Labs' robotics research radar: papers, repos, posts, models and datasets from arXiv, "
         "GitHub, Hugging Face, X, Hacker News, alphaXiv, RSS and links the team shares in Discord. "
-        "Use `search` for most questions (it is hybrid: keyword + semantic + fuzzy author/org names). "
+        "Use `search` for everything: free text (hybrid keyword + semantic) and/or structured fields. "
+        "To look up a person, lab or topic, fill `author`, `org` or `topic` instead of putting names in `query`. "
         "Always cite items by their `url`. `auki_relevance` (0-1) says how much an item matters to Auki."
     ),
 )
@@ -42,32 +43,9 @@ async def search(query: str | None = None, author: str | None = None, org: str |
 
 @mcp.tool()
 async def get_item(id: int) -> dict:
-    """Full detail for one item: summary, authors, orgs, topics, entities, metrics, related items."""
+    """Full detail for one item: summary, authors, orgs, topics, entities, metrics, and related items
+    (the paper an X post discusses, the repo implementing a paper, nearest neighbours)."""
     return await s.get_item(id) or {"error": f"no item {id}"}
-
-
-@mcp.tool()
-async def find_related(id: int, limit: int = 8) -> list[dict]:
-    """Items linked to this one (repo implements paper, post discusses paper) plus nearest neighbours."""
-    return await s.find_related(id, limit)
-
-
-@mcp.tool()
-async def author_profile(name: str) -> dict:
-    """What we know about a researcher: items, topics, frequent co-authors, orgs. Fuzzy name or @handle."""
-    return await s.author_profile(name) or {"error": f"no author matching {name!r}"}
-
-
-@mcp.tool()
-async def trending(topic: str | None = None, days: int = 7, limit: int = 10) -> list[dict]:
-    """What's getting attention: cross-source sightings, upvotes/stars/points/likes, Auki relevance."""
-    return await s.trending(topic, days, limit)
-
-
-@mcp.tool()
-async def digest(days: int = 7) -> dict:
-    """Structured digest of the last N days: counts by topic, most Auki-relevant items, trending items."""
-    return await s.digest(days)
 
 
 @mcp.tool()
