@@ -1,44 +1,44 @@
 {
   "summary": {
     "date": "2026-11-05",
-    "llm": "anthropic:claude-haiku-5-5",
-    "embeddings": "local:BAAI/bge-small-en-v1.5",
+    "llm": "fake (keyword heuristic baseline)",
+    "embeddings": "fake (hashed BoW)",
     "n_items": 56,
     "n_queries": 21,
     "failed": 0,
-    "cost_usd": 0.0378,
+    "cost_usd": 0.0,
     "topics": {
-      "primary_acc": 0.875,
-      "any_overlap_acc": 0.982,
-      "micro_precision": 0.693,
-      "micro_recall": 0.898,
-      "micro_f1": 0.782
+      "primary_acc": 0.464,
+      "any_overlap_acc": 0.696,
+      "micro_precision": 0.443,
+      "micro_recall": 0.58,
+      "micro_f1": 0.502
     },
     "relevance": {
-      "band_acc": 0.768,
+      "band_acc": 0.375,
       "confusion_expected_vs_predicted": {
         "high": {
-          "high": 10,
-          "mid": 1,
-          "low": 0
+          "high": 9,
+          "mid": 0,
+          "low": 2
         },
         "mid": {
-          "high": 5,
-          "mid": 25,
-          "low": 0
+          "high": 2,
+          "mid": 2,
+          "low": 26
         },
         "low": {
-          "high": 0,
-          "mid": 7,
-          "low": 8
+          "high": 4,
+          "mid": 1,
+          "low": 10
         }
       }
     },
     "search": {
-      "p@5": 0.871,
-      "r@5": 0.871,
-      "mrr": 1.0,
-      "hit@1": 1.0
+      "p@5": 0.717,
+      "r@5": 0.717,
+      "mrr": 0.96,
+      "hit@1": 0.952
     },
     "author_filter": {
       "precision": 0.867,
@@ -48,15 +48,15 @@
   "queries": [
     {
       "query": "visual relocalization in changing environments",
-      "p@5": 0.8,
-      "r@5": 0.8,
+      "p@5": 0.2,
+      "r@5": 0.2,
       "rr": 1.0,
       "hit@1": true
     },
     {
       "query": "3D scene graphs as long-term robot memory",
-      "p@5": 1.0,
-      "r@5": 1.0,
+      "p@5": 0.75,
+      "r@5": 0.75,
       "rr": 1.0,
       "hit@1": true
     },
@@ -69,8 +69,8 @@
     },
     {
       "query": "world action models that predict video and actions",
-      "p@5": 0.8,
-      "r@5": 0.8,
+      "p@5": 0.6,
+      "r@5": 0.6,
       "rr": 1.0,
       "hit@1": true
     },
@@ -83,22 +83,22 @@
     },
     {
       "query": "coordinating multiple robots",
-      "p@5": 0.6,
-      "r@5": 0.6,
-      "rr": 1.0,
-      "hit@1": true
+      "p@5": 0.0,
+      "r@5": 0.0,
+      "rr": 0.16666666666666666,
+      "hit@1": false
     },
     {
       "query": "dexterous robot hands",
-      "p@5": 1.0,
-      "r@5": 1.0,
+      "p@5": 0.5,
+      "r@5": 0.5,
       "rr": 1.0,
       "hit@1": true
     },
     {
       "query": "learning manipulation from human videos",
-      "p@5": 1.0,
-      "r@5": 1.0,
+      "p@5": 0.75,
+      "r@5": 0.75,
       "rr": 1.0,
       "hit@1": true
     },
@@ -125,8 +125,8 @@
     },
     {
       "query": "teleoperation and demonstration data collection",
-      "p@5": 1.0,
-      "r@5": 1.0,
+      "p@5": 0.6666666666666666,
+      "r@5": 0.6666666666666666,
       "rr": 1.0,
       "hit@1": true
     },
@@ -146,15 +146,15 @@
     },
     {
       "query": "feature matching for SLAM and visual localization",
-      "p@5": 1.0,
-      "r@5": 1.0,
+      "p@5": 0.5,
+      "r@5": 0.5,
       "rr": 1.0,
       "hit@1": true
     },
     {
       "query": "autonomous driving",
-      "p@5": 0.6666666666666666,
-      "r@5": 0.6666666666666666,
+      "p@5": 0.3333333333333333,
+      "r@5": 0.3333333333333333,
       "rr": 1.0,
       "hit@1": true
     },
@@ -188,8 +188,8 @@
     },
     {
       "query": "data-efficient imitation learning",
-      "p@5": 0.6666666666666666,
-      "r@5": 0.6666666666666666,
+      "p@5": 1.0,
+      "r@5": 1.0,
       "rr": 1.0,
       "hit@1": true
     }
@@ -223,36 +223,260 @@
   ],
   "misses": [
     {
-      "title": "Visibility-Aware Reference Generation for Benchmarking Visual 3D Reconstruction ",
+      "title": "DreamX: Video Diffusion Model is a Universal Latent Action Learner",
       "expected": [
         [
-          "datasets-benchmarks",
-          "slam-spatial-mapping"
-        ],
-        "high"
-      ],
-      "got": [
-        [
-          "datasets-benchmarks",
-          "perception"
-        ],
-        0.6
-      ]
-    },
-    {
-      "title": "Nested Field-of-View Barriers for Teleoperated Multi-Robot Relay Chains",
-      "expected": [
-        [
-          "multi-agent"
+          "vla-foundation-models"
         ],
         "mid"
       ],
       "got": [
         [
-          "multi-agent",
-          "locomotion"
+          "other"
         ],
-        0.72
+        0.35
+      ]
+    },
+    {
+      "title": "PolicyIK: High-Precision Inverse Kinematics for Robot Arms with Reinforcement Le",
+      "expected": [
+        [
+          "manipulation"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "vla-foundation-models",
+          "sim2real"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "GUILD: Guided Iterative Data Collection for Imitation Learning",
+      "expected": [
+        [
+          "datasets-benchmarks",
+          "manipulation"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "sim2real",
+          "datasets-benchmarks"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "PyRUA-DataFarm: LLM Agent as a Cost-Efficient Teleoperator for Real-Ready Robot ",
+      "expected": [
+        [
+          "datasets-benchmarks",
+          "manipulation"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "sim2real"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "PACT: Pose-Robust Actuation Co-Design for Tendon-Driven Robotic Hands",
+      "expected": [
+        [
+          "hardware",
+          "humanoids",
+          "manipulation"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "humanoids",
+          "hardware"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "GSBR: Geometric Support Behavior Regularization for Online RL",
+      "expected": [
+        [
+          "manipulation",
+          "other"
+        ],
+        "low"
+      ],
+      "got": [
+        [
+          "datasets-benchmarks"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "Should the Action Expert Train the VLM? Action-Token Supervision and Gradient Ro",
+      "expected": [
+        [
+          "vla-foundation-models"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "vla-foundation-models"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "Reality and Perceptual Gaps in Expressive Swarm Robotics",
+      "expected": [
+        [
+          "multi-agent",
+          "sim2real"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "sim2real",
+          "perception"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "RoboTryOn: Synthesizing Dexterous Robot Demonstrations from Human Videos via Vir",
+      "expected": [
+        [
+          "datasets-benchmarks",
+          "manipulation",
+          "vla-foundation-models"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "humanoids",
+          "vla-foundation-models"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "Asynchronous Robot Policies",
+      "expected": [
+        [
+          "manipulation",
+          "vla-foundation-models"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "vla-foundation-models",
+          "sim2real"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "WayTrace: A Map-to-Language-to-Trace Hierarchy for Embodied Urban Navigation",
+      "expected": [
+        [
+          "slam-spatial-mapping",
+          "vla-foundation-models"
+        ],
+        "high"
+      ],
+      "got": [
+        [
+          "locomotion",
+          "sim2real"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "DexHOT: Learning Hand-Object Configuration Transfer for Dexterous Manipulation",
+      "expected": [
+        [
+          "manipulation"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "perception"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "HLO-AMP: Hierarchical Loco-Manipulation from Object-Aware Motion Priors",
+      "expected": [
+        [
+          "humanoids",
+          "locomotion",
+          "manipulation"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "humanoids",
+          "perception"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "LoopQ: Fair, Closed-Loop Evaluation of Quantized Vision-Language-Action Models",
+      "expected": [
+        [
+          "datasets-benchmarks",
+          "vla-foundation-models"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "vla-foundation-models",
+          "datasets-benchmarks"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "CRONOS: Benchmarking Non-Episodic Reinforcement Learning for Robotic Manipulatio",
+      "expected": [
+        [
+          "datasets-benchmarks",
+          "manipulation"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "vla-foundation-models",
+          "sim2real"
+        ],
+        0.35
       ]
     },
     {
@@ -267,9 +491,26 @@
       "got": [
         [
           "vla-foundation-models",
-          "other"
+          "slam-spatial-mapping"
         ],
-        0.45
+        0.85
+      ]
+    },
+    {
+      "title": "Do Agentic Policies Need to Look at Every Step? Geometric Abstraction for Reason",
+      "expected": [
+        [
+          "perception",
+          "vla-foundation-models"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "slam-spatial-mapping"
+        ],
+        0.85
       ]
     },
     {
@@ -282,25 +523,25 @@
       ],
       "got": [
         [
-          "vla-foundation-models",
-          "manipulation"
+          "slam-spatial-mapping"
         ],
-        0.4
+        0.85
       ]
     },
     {
-      "title": "Haptic Shared Control for Multi-Robot Systems",
+      "title": "HiLo-WAM: Decoupling Long-Horizon Task Evolution and Local Dynamics in World Act",
       "expected": [
         [
-          "multi-agent"
+          "manipulation",
+          "vla-foundation-models"
         ],
         "mid"
       ],
       "got": [
         [
-          "multi-agent"
+          "manipulation"
         ],
-        0.72
+        0.35
       ]
     },
     {
@@ -313,10 +554,9 @@
       ],
       "got": [
         [
-          "humanoids",
-          "other"
+          "perception"
         ],
-        0.5
+        0.35
       ]
     },
     {
@@ -331,9 +571,10 @@
       "got": [
         [
           "sim2real",
-          "other"
+          "slam-spatial-mapping",
+          "datasets-benchmarks"
         ],
-        0.4
+        0.85
       ]
     },
     {
@@ -347,11 +588,11 @@
       ],
       "got": [
         [
-          "vla-foundation-models",
           "locomotion",
-          "humanoids"
+          "humanoids",
+          "vla-foundation-models"
         ],
-        0.75
+        0.35
       ]
     },
     {
@@ -364,10 +605,25 @@
       ],
       "got": [
         [
-          "multi-agent",
-          "other"
+          "sim2real",
+          "multi-agent"
         ],
-        0.5
+        0.6
+      ]
+    },
+    {
+      "title": "Trusting Imagined Futures: Auditing Imagined Rewards for VLA Post-Training",
+      "expected": [
+        [
+          "vla-foundation-models"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "vla-foundation-models"
+        ],
+        0.35
       ]
     },
     {
@@ -380,28 +636,171 @@
       ],
       "got": [
         [
-          "perception",
-          "other"
+          "slam-spatial-mapping",
+          "perception"
         ],
-        0.45
+        0.85
       ]
     },
     {
-      "title": "iMED: A Multi-Endoscope Dataset for Surgical 3D Perception",
+      "title": "PrimeSim: A Generalist World Model Simulator from Large-Scale Cross-Embodiment D",
       "expected": [
         [
-          "datasets-benchmarks",
-          "perception"
+          "sim2real",
+          "vla-foundation-models"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "vla-foundation-models",
+          "sim2real"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "Coordinating Humanoid Loco-Manipulation through Action-Conditioned Latent Foresi",
+      "expected": [
+        [
+          "humanoids",
+          "vla-foundation-models"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "humanoids",
+          "sim2real"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "Mass Scaling Laws for Energy-Optimal Horizontal Multirotor Flight",
+      "expected": [
+        [
+          "hardware",
+          "locomotion"
         ],
         "low"
       ],
       "got": [
         [
-          "datasets-benchmarks",
-          "slam-spatial-mapping",
+          "sim2real"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "Cycle WAM: Coupling Action and Video through Cycle Consistency",
+      "expected": [
+        [
+          "vla-foundation-models"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "slam-spatial-mapping"
+        ],
+        0.85
+      ]
+    },
+    {
+      "title": "CLARA: A Cognitively-Driven Clarification Framework for Grounding Ambiguous Requ",
+      "expected": [
+        [
+          "other"
+        ],
+        "low"
+      ],
+      "got": [
+        [
+          "manipulation"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "Just Between Us? Exploring a Wearable-Mediated Channel for Discreet Human-Agent ",
+      "expected": [
+        [
+          "other"
+        ],
+        "low"
+      ],
+      "got": [
+        [
           "perception"
         ],
-        0.5
+        0.35
+      ]
+    },
+    {
+      "title": "Future Representation Distillation for Imagination-Free World Action Models",
+      "expected": [
+        [
+          "vla-foundation-models"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "sim2real"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "Action Intent as a Bridge: Transferring Manipulation Knowledge from Human-Centri",
+      "expected": [
+        [
+          "manipulation",
+          "vla-foundation-models"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "vla-foundation-models",
+          "sim2real"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "LLM-Assisted Planning with Distributed Onboard Behaviour Tree Execution for Mult",
+      "expected": [
+        [
+          "multi-agent"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "sim2real",
+          "hardware"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "Minimizing Bottleneck Overload Risk in Online Edge Task Placement under Workload",
+      "expected": [
+        [
+          "other"
+        ],
+        "low"
+      ],
+      "got": [
+        [
+          "sim2real"
+        ],
+        0.35
       ]
     },
     {
@@ -415,11 +814,60 @@
       ],
       "got": [
         [
-          "humanoids",
-          "slam-spatial-mapping",
-          "vla-foundation-models"
+          "manipulation",
+          "locomotion",
+          "humanoids"
         ],
-        0.8
+        0.35
+      ]
+    },
+    {
+      "title": "VARP: A Visual Adaptive Rearrangement Planner for Non-Monotone Object Rearrangem",
+      "expected": [
+        [
+          "manipulation"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "datasets-benchmarks"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "From White Canes to Edge AI: A Survey of Assistive Navigation Technologies for B",
+      "expected": [
+        [
+          "other",
+          "slam-spatial-mapping"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "vla-foundation-models",
+          "perception",
+          "hardware"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "Detector Placement Relaxes Efficiency Requirements for Detecting a Weak Coherent",
+      "expected": [
+        [
+          "other"
+        ],
+        "low"
+      ],
+      "got": [
+        [
+          "perception"
+        ],
+        0.35
       ]
     },
     {
@@ -434,9 +882,40 @@
       "got": [
         [
           "perception",
+          "datasets-benchmarks"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "Dex-One2Many: Learning Dexterous Manipulation from a Single Human Demonstration",
+      "expected": [
+        [
+          "manipulation"
+        ],
+        "mid"
+      ],
+      "got": [
+        [
+          "manipulation",
+          "sim2real"
+        ],
+        0.35
+      ]
+    },
+    {
+      "title": "PORTER: Edge-Cloud Residency for Persistent 3D Scene Graph Memory",
+      "expected": [
+        [
           "slam-spatial-mapping"
         ],
-        0.8
+        "high"
+      ],
+      "got": [
+        [
+          "other"
+        ],
+        0.35
       ]
     }
   ]

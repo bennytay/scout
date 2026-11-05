@@ -19,10 +19,10 @@ from pathlib import Path
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE.parent / "src"))
 
-from scout import xsignal
-from scout.connectors.x import parse_page
-from scout.pipeline.enrich import enrich
-from scout.providers.llm import get_llm
+from scout import xsignal  # noqa: E402
+from scout.connectors.x import parse_page  # noqa: E402
+from scout.pipeline.enrich import enrich  # noqa: E402
+from scout.providers.llm import get_llm  # noqa: E402
 
 
 def prf(pred: list[bool], gold: list[bool]) -> dict:
