@@ -102,7 +102,7 @@ class Pipeline:
             log.warning("enrich.failed", url=url, error=repr(e)[:300])
         cost += llm_cost
         if enrichment and is_scanned_x_post(item) and enrichment.signal in DROP_SIGNALS:
-            log.info("item.judged_out", url=url, signal=enrichment.signal)
+            log.info("item.judged_out", url=url, signal=enrichment.signal, title=item.title[:120])
             return Result(None, "dropped", cost)
 
         outlinks = [u for u in extract_outlinks(item.outlinks, item.full_text) if u != url]
