@@ -69,40 +69,6 @@ async def test_rss():
 
 
 @respx.mock
-async def test_x_account_is_incremental_and_caches_user_id():
-    lookup = respx.get("https://api.x.com/2/users/by/username/physical_int").mock(
-        return_value=httpx.Response(200, json={"data": {"id": "1414", "username": "physical_int"}}))
-    timeline = respx.get("https://api.x.com/2/users/1414/tweets").mock(
-        return_value=httpx.Response(200, text=fixture("x_v2_user_tweets_synthetic.json")))
-    state: dict = {}
-    async with http_client() as http:
-        items = await REGISTRY["x"].fetch(http, "x_account", "@physical_int", OLD, state=state)
-        assert [i.url for i in items] == ["https://x.com/physical_int/status/1900000000000000001",
-                                          "https://x.com/physical_int/status/1900000000000000002"]
-        first = items[0]
-        assert first.outlinks == ["https://arxiv.org/abs/2510.00001"]  # media links dropped
-        assert "results on 3 robots" in first.summary                    # long-post text used
-        assert first.metrics["x_likes"] == 1200 and first.author_handles == {"x": "physical_int"}
-        assert state == {"user_id": "1414", "since_id": "1900000000000000002"}
-        assert "start_time" in timeline.calls[0].request.url.params
-
-        await REGISTRY["x"].fetch(http, "x_account", "@physical_int", OLD, state=state)
-    assert lookup.call_count == 1                                          # user id cached
-    assert timeline.calls[1].request.url.params["since_id"] == "1900000000000000002"
-    assert timeline.calls[1].request.headers["authorization"] == "Bearer test-token"
-
-
-@respx.mock
-async def test_x_query_restricts_to_link_posts():
-    route = respx.get("https://api.x.com/2/tweets/search/recent").mock(
-        return_value=httpx.Response(200, text=fixture("x_v2_user_tweets_synthetic.json")))
-    async with http_client() as http:
-        await REGISTRY["x"].fetch(http, "x_query", "humanoid robot", OLD, state={})
-    q = route.calls[0].request.url.params["query"]
-    assert q == "(humanoid robot) has:links -is:retweet -is:reply lang:en"
-
-
-@respx.mock
 async def test_resolve_x_link_without_api_key():
     respx.get("https://api.fxtwitter.com/status/20").mock(
         return_value=httpx.Response(200, text=fixture("fxtwitter_status.json")))

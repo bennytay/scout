@@ -22,8 +22,20 @@ class Settings(BaseSettings):
 
     # Sources
     github_token: str | None = None
-    x_bearer_token: str | None = None       # official X API v2 (pay-per-use credits)
-    x_max_results: int = 20                 # per tracked source per run (10-100); caps credit spend
+    # X: the newsroom. Auth with a bearer token, or the app's consumer key + secret (exchanged for one).
+    x_bearer_token: str | None = None
+    x_api_key: str | None = None
+    x_api_secret: str | None = None
+    x_max_results: int = 100                # max posts read per query per scan (caps credit spend)
+    x_every_hours: int = 2                  # how often the bot scans X
+    x_discovery_delay_hours: int = 6        # discovery reads posts at least this old, so likes have accrued
+    # the gate (discovery posts only; radar accounts are trusted and go straight to the judge)
+    x_min_likes: int = 10
+    x_viral_likes: int = 50                 # this many likes overrides the reputation rules
+    x_min_followers: int = 200
+    x_min_account_age_days: int = 90
+    x_max_per_author: int = 3               # per scan
+    x_max_per_radar_author: int = 10
     hf_token: str | None = None
 
     # Discord: the bot watches one links channel and posts the monitoring feed to another
@@ -44,6 +56,10 @@ class Settings(BaseSettings):
     alert_min_relevance: float = 0.75   # 🔥 highlight + reason line in the feed
     max_items_per_source: int = 100
     lookback_days: int = 2
+
+    @property
+    def x_enabled(self) -> bool:
+        return bool(self.x_bearer_token or (self.x_api_key and self.x_api_secret))
 
 
 @lru_cache
