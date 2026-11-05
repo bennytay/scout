@@ -87,3 +87,22 @@ async def test_entities_are_searchable_and_exclusions_bind_all_rankers(database)
     assert (await search.search("GR00T"))[0]["id"] == ids[3]
     hits = {r["id"] for r in await search.search('humanoid -unitree')}
     assert ids[3] in hits and ids[4] not in hits  # the Unitree article is excluded from every ranker
+
+
+async def test_author_autocomplete_is_fuzzy(database):
+    await seed()
+    assert (await search.authors_like("Hutt"))[0]["name"] == "Marco Hutter"
+    assert (await search.authors_like("Huter"))[0]["name"] == "Marco Hutter"  # typo
+    assert len(await search.authors_like("")) == 4  # empty box: everyone, most items first
+
+
+async def test_recent_and_linked(database):
+    await seed()
+    p = Pipeline()
+    post = await p.process(Item(url="https://x.com/someone/status/1", type=ItemType.post, source="x",
+                                title="@someone: our relocalization paper", submitted_by="tester",
+                                outlinks=["https://arxiv.org/abs/2510.10001"]))
+    r = await search.recent(days=1)
+    assert r["total"] == 6 and r["by_type"]["post"] == 1 and r["top"][0]["id"] == post.item_id
+    links = await search.linked([post.item_id])
+    assert [lk["url"] for lk in links[post.item_id]] == ["https://arxiv.org/abs/2510.10001"]

@@ -69,3 +69,73 @@ def render_brief(b: dict, x_monitored: bool = True) -> list[str]:
             cur += "\n\n" + blk
     msgs.append(cur)
     return msgs
+
+
+# ---------- replies to @Scout and slash commands ----------
+
+def _fit(lines: list[str]) -> str:
+    """Join lines, dropping whole lines from the end to stay under Discord's limit."""
+    out = []
+    for ln in lines:
+        if len("\n".join(out + [ln])) > LIMIT - 20:
+            out.append("…")
+            break
+        out.append(ln)
+    return "\n".join(out)
+
+
+def item_line(item: dict, links: list[dict] | None = None) -> str:
+    from ..brief import link_label
+
+    line = f"{ICON.get(item.get('type'), '🔗')} {_link(item['title'], item['url'], 85)}"
+    if item.get("auki_relevance") is not None:
+        line += f" · {item['auki_relevance']:.2f}"
+    if item.get("published_at"):
+        line += f" · {str(item['published_at'])[:10]}"
+    if links:
+        line += " · " + " · ".join(f"[{_cut(link_label(lk), 30)}](<{lk['url']}>)" for lk in links[:3])
+    return line
+
+
+def item_list(header: str, items: list[dict], links: dict[int, list[dict]] | None = None) -> str:
+    if not items:
+        return header + "\nNothing stored yet."
+    links = links or {}
+    return _fit([header] + [item_line(i, links.get(i["id"])) for i in items])
+
+
+def ask_reply(r: dict) -> str:
+    """@Scout answer: the answer with [n] citations, then the numbered sources as links."""
+    answer = (r.get("answer") or "").strip()
+    sources = [f"[{s['n']}] {_link(s['title'], s['url'], 80)}" for s in r.get("sources", [])]
+    if not sources:
+        return answer[:LIMIT]
+    budget = LIMIT - len("\n".join(sources)) - 40
+    if len(answer) > budget:
+        answer = _cut(answer, max(budget, 300))
+    return _fit([answer, ""] + sources)
+
+
+def author_reply(p: dict) -> str:
+    handle = f" ([@{p['x_handle']}](<https://x.com/{p['x_handle']}>))" if p.get("x_handle") else ""
+    head = f"👤 **{p['name']}**{handle} · {p.get('items_in_db', 0)} items"
+    lines = [head]
+    if p.get("topics"):
+        lines.append("• **Topics:** " + ", ".join(f"{t['topic']} ({t['n']})" for t in p["topics"][:5]))
+    if p.get("orgs"):
+        lines.append("• **Orgs:** " + ", ".join(o["name"] for o in p["orgs"][:4]))
+    if p.get("frequent_coauthors"):
+        lines.append("• **Works with:** " + ", ".join(c["name"] for c in p["frequent_coauthors"][:5]))
+    lines += [item_line(i) for i in p.get("recent_items", [])[:8]]
+    return _fit(lines)
+
+
+def recent_reply(r: dict, links: dict[int, list[dict]]) -> str:
+    by_type = " · ".join(f"{ICON.get(t, '🔗')} {n} {t}s" for t, n in r["by_type"].items()) or "nothing new"
+    head = f"🗂️ **Last {r['days']} days:** {by_type} · {r['total']} items stored in total"
+    return item_list(head, r["top"], links)
+
+
+def radar_suggestion(handle: str, kept: int, judged: int) -> str:
+    return (f"⭐ [@{handle}](<https://x.com/{handle}>) isn't on the radar, but {kept} of {judged} of their posts were "
+            f"kept as news. Add them with `/follow {handle}`.")

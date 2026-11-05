@@ -1,4 +1,4 @@
-"""Read side: hybrid search, item detail, related items, author profiles, /ask.
+"""Read side: hybrid search, item detail, related items, author profiles, what's stored, /ask.
 
 Shared by the MCP server and the Discord bot, so both always give the same answers.
 """
@@ -174,6 +174,52 @@ async def author_profile(name: str) -> dict | None:
         "recent_items": [_clean({k: i[k] for k in ("id", "title", "url", "type", "published_at")})
                          for i in await hydrate([r["id"] for r in items])],
     })
+
+
+# ---------- lookups for Discord slash commands (no LLM) ----------
+
+async def linked(ids: list[int]) -> dict[int, list[dict]]:
+    """For each item, what it's explicitly linked to (a post -> its paper/repo/model, a paper -> its code)."""
+    if not ids:
+        return {}
+    rows = await db.fetch(
+        """select l.src_item_id as a, l.dst_item_id as b from item_links l
+           where l.src_item_id = any(%s) or l.dst_item_id = any(%s)""", ids, ids)
+    other = {r["b"] for r in rows} | {r["a"] for r in rows}
+    info = {r["id"]: r for r in await db.fetch(
+        "select id, type::text as type, title, canonical_url as url from items where id = any(%s)", list(other))}
+    out: dict[int, list[dict]] = {i: [] for i in ids}
+    for r in rows:
+        for me, them in ((r["a"], r["b"]), (r["b"], r["a"])):
+            if me in out and them in info and info[them] not in out[me]:
+                out[me].append(dict(info[them]))
+    return out
+
+
+async def authors_like(prefix: str, limit: int = 25) -> list[dict]:
+    """Autocomplete: authors by name or X handle (fuzzy), most items first."""
+    p = prefix.strip().lstrip("@")
+    return await db.fetch(
+        """select a.name, a.x_handle, count(ia.item_id) as n
+           from authors a join item_authors ia on ia.author_id = a.id
+           where %s = '' or a.name ilike %s or a.x_handle ilike %s or %s <%% a.name
+           group by a.id order by (%s <> '' and (a.name ilike %s or a.x_handle ilike %s)) desc, n desc, a.name
+           limit %s""",
+        p, f"%{p}%", f"{p}%", p, p, f"{p}%", f"{p}%", limit)
+
+
+async def recent(days: int = 3, limit: int = 10) -> dict:
+    """What's stored: counts for the window, then the most relevant X posts (with what they link to)."""
+    counts = await db.fetch(
+        """select type::text as type, count(*) as n from items
+           where ingested_at >= now() - make_interval(days => %s) group by 1 order by 2 desc""", days)
+    total = await db.fetchrow("select count(*) as n from items")
+    top = await db.fetch(
+        """select id from items where ingested_at >= now() - make_interval(days => %s)
+           and (type = 'post' or submitted_by is not null)
+           order by auki_relevance desc nulls last, ingested_at desc limit %s""", days, limit)
+    return {"days": days, "total": total["n"], "by_type": {r["type"]: r["n"] for r in counts},
+            "top": [_clean(i) for i in await hydrate([r["id"] for r in top])]}
 
 
 # ---------- /ask: natural-language question → filters → search → cited answer ----------

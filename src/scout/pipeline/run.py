@@ -54,7 +54,9 @@ class Result:
 class RunStats:
     fetched: int = 0      # read from the source (for X: before the gate)
     inserted: int = 0
-    dropped: int = 0      # X: removed by the gate or the judge
+    gated: int = 0        # X: removed by the free rule gate
+    dropped: int = 0      # X: removed by the judge (promo / off-topic / noise)
+    expanded: int = 0     # papers / repos / models pulled in because a kept post linked to them
     duplicates: int = 0
     failed: int = 0
     cost: float = 0.0
@@ -111,15 +113,18 @@ class Pipeline:
         return Result(item_id, "inserted", cost)
 
 
-    async def follow(self, http: httpx.AsyncClient, item: Item) -> None:
-        """Ingest what a kept post links to (paper, repo, model) and link them to it. Dedupes as usual."""
+    async def follow(self, http: httpx.AsyncClient, item: Item) -> int:
+        """Ingest what a kept post links to (paper, repo, model) and link them to it. Returns how many were new."""
+        new = 0
         for u in follow_targets(item):
             try:
                 sub = await self.process(await resolve(http, u, source=item.source))
                 if sub.item_id:
                     await link_item(sub.item_id)
+                    new += sub.status == "inserted"
             except Exception as e:
                 log.warning("outlink.failed", url=u, error=repr(e)[:200])
+        return new
 
 
 @retry(retry=retry_if_exception_type((httpx.TransportError, httpx.HTTPStatusError)),
@@ -158,7 +163,7 @@ async def _fetch_many(connector, http, sources, since, stats: RunStats) -> list[
         await _source_failed(sid, msg)
     stats.errors += res.errors
     stats.fetched += res.seen
-    stats.dropped += sum(res.dropped.values())
+    stats.gated += sum(res.dropped.values())
     return res.items
 
 
@@ -218,7 +223,7 @@ async def run_connector(name: str, since: datetime | None = None, only_value: st
                     stats.inserted += 1
                     stats.new_ids.append(r.item_id)
                     if is_scanned_x_post(it):
-                        await pipe.follow(http, it)
+                        stats.expanded += await pipe.follow(http, it)
                 elif r.status == "duplicate":
                     stats.duplicates += 1
                 elif r.status == "dropped":
@@ -231,11 +236,13 @@ async def run_connector(name: str, since: datetime | None = None, only_value: st
     await db.execute(
         """update ingest_runs set finished_at = now(), status = %s, fetched = %s, inserted = %s,
            duplicates = %s, failed = %s, dropped = %s, cost_usd = %s, error = %s where id = %s""",
-        status, stats.fetched, stats.inserted, stats.duplicates, stats.failed, stats.dropped, round(stats.cost, 6),
+        status, stats.fetched, stats.inserted, stats.duplicates, stats.failed, stats.gated + stats.dropped,
+        round(stats.cost, 6),
         "\n".join(stats.errors)[:2000] or None, run["id"],
     )
     log.info("connector.done", connector=name, status=status, fetched=stats.fetched, inserted=stats.inserted,
-             duplicates=stats.duplicates, dropped=stats.dropped, failed=stats.failed, cost=round(stats.cost, 5))
+             duplicates=stats.duplicates, gated=stats.gated, dropped=stats.dropped, expanded=stats.expanded,
+             failed=stats.failed, cost=round(stats.cost, 5))
     return stats
 
 

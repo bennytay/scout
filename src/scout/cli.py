@@ -22,7 +22,7 @@ async def _ingest(a):
     for n in names:
         stats = await run_connector(n, since=since, only_value=a.value)
         failed += bool(stats.errors)
-        print(f"{n:12} seen={stats.fetched:4} new={stats.inserted:4} dropped={stats.dropped:4} dup={stats.duplicates:4} "
+        print(f"{n:12} seen={stats.fetched:4} new={stats.inserted:4} gated={stats.gated:4} judged_out={stats.dropped:4} linked={stats.expanded:3} dup={stats.duplicates:4} "
               f"failed={stats.failed:3} cost=${stats.cost:.4f} errors={len(stats.errors)}", file=sys.stderr)
     return failed
 

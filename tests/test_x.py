@@ -162,7 +162,7 @@ async def test_run_x_gates_judges_expands_and_learns(database):
         respx.route().mock(return_value=httpx.Response(404))  # other outlinks: fail soft
         stats = await run_connector("x")
     assert not stats.errors
-    assert stats.fetched == 62 and stats.inserted > 0 and stats.dropped > 30
+    assert stats.fetched == 62 and stats.inserted > 0 and stats.gated > 30 and stats.dropped > 0
     posts = await _val(database, "select count(*) from items where type = 'post'")
     assert 0 < posts <= stats.inserted
     # expand: kept posts pulled in the papers they link to (the mock serves one canned arXiv paper)
@@ -170,7 +170,8 @@ async def test_run_x_gates_judges_expands_and_learns(database):
     # learn: per-account judge results recorded
     assert await _val(database, "select sum(judged) from x_accounts") > 0
     run = await database.fetchrow("select fetched, dropped from ingest_runs where connector = 'x'")
-    assert run["fetched"] == 62 and run["dropped"] == stats.dropped
+    assert run["fetched"] == 62 and run["dropped"] == stats.gated + stats.dropped
+    assert stats.fetched == stats.gated + stats.dropped + stats.inserted + stats.duplicates + stats.failed
     radar = await database.fetchrow("select cursor from sources where kind = 'x_account' and value = 'svlevine'")
     assert "until" in radar["cursor"]
 
