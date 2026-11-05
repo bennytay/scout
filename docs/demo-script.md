@@ -6,8 +6,8 @@ Discord.** Show, don't explain. Keep code on screen under 20 seconds in total.
 
 ## Before you hit record
 
-- [ ] `make db`, then `make demo` (fresh demo database; the bot's first X scan starts within 5 minutes and
-      takes ~2 minutes). Start recording when `📡 Scanning X ⏳` appears.
+- [ ] Run the bot on the demo database (`DATABASE_URL=…/scout_demo uv run scout bot`). Don't reset it: the search
+      shots need the stored data.
 - [ ] Clear the #feed channel first, so the scan is the first thing on screen.
 - [ ] Have one X post link ready to paste: a robotics post that links a paper.
 - [ ] Optional: Claude Desktop with the MCP snippet from the README, pointed at the same `DATABASE_URL`.
@@ -18,18 +18,14 @@ Discord.** Show, don't explain. Keep code on screen under 20 seconds in total.
 > "Robotics news breaks on X: a lab posts the demo, the paper and the repo. But X is also mostly noise. So I built
 > Scout. It watches X, keeps the signal, and gives the team one place to search it."
 
-**0:20–1:20 · Monitoring** *(the status line resolves)*
-> "Every two hours it scans X two ways: about eighty trusted accounts across all of robotics, plus anyone who links to a paper or repo, or breaks big news.
-> That's nine API requests per scan."
+**0:20–1:20 · Monitoring** *(type `/scan` in #feed)*
+> "Every two hours Scout scans X two ways: about eighty trusted accounts across all of robotics, plus anyone who
+> links to a paper or repo, or breaks big news. I can also just ask it to scan now."
 
-*(`📡 Scanned X: 127 posts → 74 passed the filter → 39 kept (+7 papers/repos they link to)`)*
-> "First, free rules drop spam and posts nobody's engaging with. Then Claude reads what's left and throws out
-> promo, off-topic and noise. Every post it keeps gets followed to its paper and code. In the eval, everything
-> it kept was worth reading."
-
-*(the brief arrives)*
-> "Every six hours it writes the brief: the top stories, each led by the X post and linked to the paper and code.
-> Every link comes from the database, so it can't invent one."
+*(the brief arrives as cards: poster, picture, likes, paper and code links)*
+> "Free rules drop spam and posts nobody's engaging with. Claude reads what's left and throws out promo,
+> off-topic and noise. What's left becomes the brief: the top stories, each led by the X post and linked to its
+> paper and code. Every link comes from the database, so it can't invent one. It posts this every morning."
 
 **1:20–1:45 · Team links** *(paste the X post in #links → ⏳ → ✅ → 4 bullets)*
 > "Anyone can drop a link. It follows the post to the paper and tells us why it matters to Auki."

@@ -196,3 +196,17 @@ round could fall out. Now:
 - **Measured:** the X signal eval is unchanged (precision 1.00). On the demo data, the brief went from 41 to
   114 candidates, the Agility IPO moved from #7 to #1, and a drone-inspection story entered the top 10.
 - Existing items were backfilled with `importance` by re-enrichment ($0.05 for 362 items).
+
+### D27. The feed is the brief: daily cards, plus `/scan` (refines D24)
+
+The per-scan status line (`📡 Scanned X: 127 posts → 74 passed → 39 kept`) was noise to a reader: it is
+operator telemetry, and the counts live in `ingest_runs` anyway. Now:
+- **Scans are silent.** Every 2h as before; only failures post (one ⚠️ line).
+- **The brief is daily** (9am Sydney by default) instead of every 6h, and **`/scan`** runs a scan on demand
+  and posts the brief of anything new, so nobody waits for the schedule.
+- **Each story is a Discord embed card:** poster and avatar, headline linked to the post, why it matters, its
+  paper/code links, likes and importance, and the post's picture (big for the top story, a thumbnail for the
+  rest, so 10 stories stay scannable). Orange bar = matters to Auki.
+- Pictures and avatars come from the same X search request (`attachments.media_keys` expansion), stored in
+  `items.media` (migration 013). Posts stored before that were backfilled free via fxtwitter
+  (`scripts/backfill_media.py`).

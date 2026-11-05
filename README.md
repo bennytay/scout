@@ -67,7 +67,7 @@ flowchart LR
 **A real scan** (first run, 2 days of backlog):
 
 ```
-📡 Scanned X: 127 posts → 74 passed the filter → 39 kept (+7 papers/repos they link to)      $0.043
+127 posts seen → 74 passed the filter → 39 kept (+7 papers/repos they link to)      $0.043
 ```
 
 The 39 kept included Boston Dynamics' Stretch Gen 2, Xiaomi's CyberOne 02 on a factory line, Tutor
@@ -115,7 +115,8 @@ typo-tolerant ("Huter" finds Hutter).
 
 | | What happens |
 |---|---|
-| **#feed** | Every 2h a status line: `📡 Scanned X: 127 posts → 74 passed the filter → 39 kept (+7 papers/repos)`. Every 6h, **the brief**: the top 7–10 stories since the last one, written by Claude Opus. Each story is led by an X post and linked to its paper, code and model. Radar suggestions and health problems also appear here. |
+| **#feed** | X is scanned every 2h, silently (only failures are posted). Once a day (9am Sydney, `BRIEF_HOUR`/`BRIEF_TZ`), **the brief**: the top 7–10 stories since the last one, written by Claude Opus, one card per story. Each card is led by its X post (poster, picture, likes) and links to its paper, code and model. Radar suggestions and health problems also appear here. |
+| `/scan` | Scan X now and post the brief of anything new since the last one, in the same card format. |
 | **#links** | Paste any link (an X post, paper, repo or article) and get a 4-bullet reply: what it is, how important it is, the Auki angle, topics and authors, and related items already stored. X posts are followed through to their paper and repo. |
 | **@Scout** *question* | Plain-language answer from the database, with numbered source links. Also available as `/ask`. |
 | `/author name` | Everything stored from one person: topics, orgs, co-authors, recent items. Autocompletes from the database. |
@@ -123,26 +124,23 @@ typo-tolerant ("Huter" finds Hutter).
 | `/recent [days]` | **What's stored:** counts by type, then the top posts and what they link to. |
 | `/follow handle` · `/unfollow handle` | Edit the X radar. |
 
-A brief, trimmed to 4 of its 10 stories (real output from the scan above):
+A brief (real output from the demo data, as text; in Discord each story is a card with the post's picture,
+the poster's avatar and a colour bar, orange when it matters to Auki):
 
 ```
-📰 Robotics brief · Thu 05 Nov, 04:28 UTC · 46 new items → 10 stories
+📰 Robotics brief · Thu 5 Nov · 10 stories from 368 new items
 
-1. Xiaomi CyberOne 02 humanoids complete 8-hour shift in EV factory
-Xiaomi claims first production-line-level humanoid operation alongside AMRs, and is also trialing its Robotics-1 model in housekeeping.
-𝕏 @CyberRobooo · 𝕏 @CyberRobooo
+1. Agility Robotics goes public via Churchill Capital SPAC merger            @TheHumanoidHub
+   Humanoid maker Agility completes its SPAC combination, listing under ticker AGLT…
+   𝕏 @agilityrobotics                                    ❤ 109 · 🔁 9 · importance 0.80
 
-3. RoboColosseum launches distributed real-world robot benchmarking network
-Backed by Hugging Face and Unitree, it reports over 10,000 physical trials across four embodiments including SO-101 arms.
-𝕏 @UnitreeRobotics · 𝕏 @CyberRobooo · 𝕏 @IlirAliu_ · 𝕏 @LeRobotHF
+4. RoboColosseum launches open real-world robot benchmark across 124 sites   @CyberRobooo
+   Blind pairwise trials on hundreds of physical robots, with every rollout published…
+   paper: RoboColosseum · 𝕏 @IlirAliu_ · 𝕏 @UnitreeRobotics                          importance 0.70
 
-4. Interactive 3D World Simulator predicts manipulation scenes at 50+ FPS
-Action-conditioned world model renders 3D Gaussian scenes from any camera, pointing toward spatially grounded robot simulation.
-𝕏 @YunzhuLiYZ · jwang771.github.io · 𝕏 @IlirAliu_ · 𝕏 @chris_j_paxton
-
-5. ETH's WayTrace takes legged robot from web-map directions to destination
-Combines off-the-shelf VLM, onboard trace model and RL policy for map-guided long-range navigation, relevant to shared spatial maps.
-𝕏 @leggedrobotics · 𝕏 @mateoguaman
+9. ETH's WayTrace takes legged robots from web-map directions to navigation  @leggedrobotics
+   Combines an off-the-shelf VLM, onboard trace model and RL policy for kilometer-scale urban navigation.
+   paper: WayTrace · paper: SNAP · 𝕏 @mateoguaman                     ❤ 24 · 🔁 2 · importance 0.60
 ```
 
 Every label is a link. The editor model can only cite items in its candidate list, and URLs come from the
