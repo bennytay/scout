@@ -13,16 +13,16 @@ def _print(x) -> None:
 
 
 async def _ingest(a):
-    from .connectors import REGISTRY
+    from .connectors import SCHEDULED
     from .pipeline.run import run_connector
 
-    names = a.source or list(REGISTRY)
+    names = a.source or list(SCHEDULED)
     since = datetime.now(UTC) - timedelta(days=a.days) if a.days else None
     failed = 0
     for n in names:
         stats = await run_connector(n, since=since, only_value=a.value)
         failed += bool(stats.errors)
-        print(f"{n:12} fetched={stats.fetched:4} new={stats.inserted:4} dup={stats.duplicates:4} "
+        print(f"{n:12} seen={stats.fetched:4} new={stats.inserted:4} dropped={stats.dropped:4} dup={stats.duplicates:4} "
               f"failed={stats.failed:3} cost=${stats.cost:.4f} errors={len(stats.errors)}", file=sys.stderr)
     return failed
 
@@ -126,7 +126,7 @@ def main() -> None:
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("migrate", help="apply SQL migrations")
     i = sub.add_parser("ingest", help="run connectors")
-    i.add_argument("--source", action="append", help="connector name (repeatable); default all")
+    i.add_argument("--source", action="append", help="connector name (repeatable); default: x")
     i.add_argument("--value", help="only this tracked source value")
     i.add_argument("--days", type=int, help="look-back window (default LOOKBACK_DAYS)")
     ad = sub.add_parser("add", help="ingest one URL now")
@@ -150,7 +150,7 @@ def main() -> None:
     re_.add_argument("--all", action="store_true")
     m = sub.add_parser("mcp", help="run the MCP server")
     m.add_argument("--http", action="store_true", help="streamable HTTP with bearer auth (default stdio)")
-    sub.add_parser("bot", help="run the Discord bot: monitors every source and posts the feed")
+    sub.add_parser("bot", help="run the Discord bot: scans X, posts the brief, answers @Scout and slash commands")
     a = p.parse_args()
 
     log.setup()

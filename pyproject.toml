@@ -13,7 +13,6 @@ dependencies = [
   "structlog>=24.1",
   "tenacity>=8.3",
   "feedparser>=6.0",
-  "pyyaml>=6.0",
   "discord.py>=2.4",
   "mcp>=1.9",
   "anthropic>=0.70",

@@ -1,7 +1,7 @@
 """Connector contract. A connector turns one tracked `sources` row into a list of Items.
 
 To add a source: subclass Connector, set `name` and `kinds`, implement `fetch`, decorate with @register,
-and import the module in connectors/__init__.py. See rss.py (~30 lines).
+and import the module in connectors/__init__.py. See arxiv.py.
 """
 from collections import Counter
 from dataclasses import dataclass, field

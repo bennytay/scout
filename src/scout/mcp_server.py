@@ -14,8 +14,8 @@ from .pipeline.run import ingest_url
 mcp = MCPServer(
     "scout",
     instructions=(
-        "Scout is Auki Labs' robotics research radar: papers, repos, posts, models and datasets from arXiv, "
-        "GitHub, Hugging Face, X, Hacker News, alphaXiv, RSS and links the team shares in Discord. "
+        "Scout is Auki Labs' robotics news radar. X is the newsroom: high-signal robotics posts, plus the papers, "
+        "repos, models and datasets they link to, plus links the team shares in Discord. "
         "Use `search` for everything: free text (hybrid keyword + semantic) and/or structured fields. "
         "To look up a person, lab or topic, fill `author`, `org` or `topic` instead of putting names in `query`. "
         "Always cite items by their `url`. `auki_relevance` (0-1) says how much an item matters to Auki."
@@ -34,7 +34,7 @@ async def search(query: str | None = None, author: str | None = None, org: str |
     query: free text (optional if filtering). author/org: fuzzy names, e.g. "Levine", "DeepMind".
     topic: manipulation | locomotion | humanoids | vla-foundation-models | sim2real | slam-spatial-mapping |
            perception | hardware | datasets-benchmarks | multi-agent | other (synonyms like "SLAM" work).
-    source: arxiv | github | huggingface | x | hackernews | alphaxiv | rss | discord.
+    source: x | discord | arxiv | github | huggingface (the last three: things posts linked to).
     since: ISO date or relative like "7d", "2w", "3m". min_relevance: 0-1 Auki relevance floor.
     """
     return await s.search(query=query, author=author, org=org, topic=topic, type=type, source=source,
