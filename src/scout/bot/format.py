@@ -93,7 +93,7 @@ def item_line(item: dict, links: list[dict] | None = None) -> str:
     if item.get("published_at"):
         line += f" · {str(item['published_at'])[:10]}"
     if links:
-        line += " · " + " · ".join(f"[{_cut(link_label(lk), 30)}](<{lk['url']}>)" for lk in links[:3])
+        line += " · " + " · ".join(f"[{_cut(link_label(lk), 45)}](<{lk['url']}>)" for lk in links[:3])
     return line
 
 

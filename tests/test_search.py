@@ -93,6 +93,7 @@ async def test_author_autocomplete_is_fuzzy(database):
     await seed()
     assert (await search.authors_like("Hutt"))[0]["name"] == "Marco Hutter"
     assert (await search.authors_like("Huter"))[0]["name"] == "Marco Hutter"  # typo
+    assert (await search.authors_like("lev"))[0]["name"] == "Sergey Levine"   # word start beats substring
     assert len(await search.authors_like("")) == 4  # empty box: everyone, most items first
 
 

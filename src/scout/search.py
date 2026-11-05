@@ -203,9 +203,10 @@ async def authors_like(prefix: str, limit: int = 25) -> list[dict]:
         """select a.name, a.x_handle, count(ia.item_id) as n
            from authors a join item_authors ia on ia.author_id = a.id
            where %s = '' or a.name ilike %s or a.x_handle ilike %s or %s <%% a.name
-           group by a.id order by (%s <> '' and (a.name ilike %s or a.x_handle ilike %s)) desc, n desc, a.name
+           group by a.id
+           order by (%s <> '' and (a.name ilike %s or a.name ilike %s or coalesce(a.x_handle, '') ilike %s)) desc, n desc, a.name
            limit %s""",
-        p, f"%{p}%", f"{p}%", p, p, f"{p}%", f"{p}%", limit)
+        p, f"%{p}%", f"{p}%", p, p, f"{p}%", f"% {p}%", f"{p}%", limit)
 
 
 async def recent(days: int = 3, limit: int = 10) -> dict:
@@ -252,8 +253,11 @@ async def ask(question: str, limit: int = 8) -> dict:
     kw = {"query": plan.query or None, "author": plan.author, "org": plan.org, "topic": plan.topic, "type": plan.type,
               "since": f"{plan.since_days}d" if plan.since_days else None, "limit": limit}
     results = await search(**kw)
-    if not results and any([plan.author, plan.org, plan.topic, plan.type, plan.since_days]):
-        results = await search(query=question, limit=limit)  # filters too strict: fall back
+    if len(results) < 3 and any([plan.author, plan.org, plan.topic, plan.type, plan.since_days]):
+        # filters too strict (e.g. an org the model didn't extract): top up with a plain search
+        seen = {r["id"] for r in results}
+        results += [r for r in await search(query=question, limit=limit) if r["id"] not in seen]
+        results = results[:limit]
     if not results:
         return {"answer": "I couldn't find anything in the database about that yet.", "sources": [], "plan": kw}
     context = "\n\n".join(
