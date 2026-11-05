@@ -2,7 +2,8 @@
 
 The funnel (see README):
   1. radar      curated accounts. Trusted: they skip the reputation rules and go straight to the judge.
-  2. discovery  posts from anyone that link to research (arXiv, GitHub, Hugging Face, project pages).
+  2. discovery  posts from anyone that link to research (arXiv, GitHub, Hugging Face, project pages), plus a
+                general-news search (launches, funding, deployments) held to a higher engagement bar.
   3. gate       (this module) spam lexicon, research link, engagement, reputation, per-author cap, duplicates.
   4. judge      the enrichment call labels each post news | discussion | promo | off_topic | noise.
   5. expand     kept posts pull in the paper / repo / model they link to.
@@ -42,11 +43,18 @@ def gate(item: Item, on_radar: bool, now: datetime) -> str | None:
         return None
     cfg = settings()
     text = item.full_text or item.summary or ""
-    if not has_research_link(item):
-        return "no_research_link"
     if SPAM.search(text) or TICKER.search(text):
         return "spam"
     likes = item.metrics.get("x_likes", 0)
+    if item.source_ref == "news":  # general-news discovery: no research link, so a higher bar instead
+        if likes < cfg.x_news_min_likes:
+            return "low_engagement"
+        if (item.metrics.get("x_followers", 0) < cfg.x_news_min_followers
+                or item.metrics.get("x_account_age_days", 0) < cfg.x_min_account_age_days):
+            return "low_reputation"
+        return None
+    if not has_research_link(item):
+        return "no_research_link"
     if likes < cfg.x_min_likes:
         return "low_engagement"
     if likes < cfg.x_viral_likes and (item.metrics.get("x_followers", 0) < cfg.x_min_followers

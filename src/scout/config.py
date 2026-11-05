@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     x_viral_likes: int = 50                 # this many likes overrides the reputation rules
     x_min_followers: int = 200
     x_min_account_age_days: int = 90
+    x_news_min_likes: int = 50              # general-news discovery (no research link required)
+    x_news_min_followers: int = 1000
     x_max_per_author: int = 3               # per scan
     x_max_per_radar_author: int = 10
     hf_token: str | None = None

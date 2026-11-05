@@ -23,7 +23,7 @@ TOPIC_SYNONYMS = {
 }
 ITEM_COLUMNS = """
   i.id, i.title, i.canonical_url as url, i.type::text as type, i.summary, i.published_at, i.source,
-  i.auki_relevance, i.auki_relevance_reason, i.metrics, i.submitted_by,
+  i.importance, i.auki_relevance, i.auki_relevance_reason, i.metrics, i.submitted_by,
   coalesce((select array_agg(a.name order by ia.position) from item_authors ia
             join authors a on a.id = ia.author_id where ia.item_id = i.id), '{}') as authors,
   coalesce((select array_agg(o.name order by o.name) from item_orgs io
@@ -60,8 +60,9 @@ def _clean(row: dict) -> dict:
     out = {k: v for k, v in row.items() if v not in (None, [], {}, "")}
     if isinstance(out.get("published_at"), datetime):
         out["published_at"] = out["published_at"].date().isoformat()
-    if "auki_relevance" in out:
-        out["auki_relevance"] = round(float(out["auki_relevance"]), 2)
+    for k in ("importance", "auki_relevance"):
+        if k in out:
+            out[k] = round(float(out[k]), 2)
     if "score" in out:
         out["score"] = round(float(out["score"]), 4)
     return out
@@ -210,7 +211,7 @@ async def authors_like(prefix: str, limit: int = 25) -> list[dict]:
 
 
 async def recent(days: int = 3, limit: int = 10) -> dict:
-    """What's stored: counts for the window, then the most relevant X posts (with what they link to)."""
+    """What's stored: counts for the window, then the most important X posts (with what they link to)."""
     counts = await db.fetch(
         """select type::text as type, count(*) as n from items
            where ingested_at >= now() - make_interval(days => %s) group by 1 order by 2 desc""", days)
@@ -218,7 +219,7 @@ async def recent(days: int = 3, limit: int = 10) -> dict:
     top = await db.fetch(
         """select id from items where ingested_at >= now() - make_interval(days => %s)
            and (type = 'post' or submitted_by is not null)
-           order by auki_relevance desc nulls last, ingested_at desc limit %s""", days, limit)
+           order by coalesce(importance, auki_relevance) desc nulls last, ingested_at desc limit %s""", days, limit)
     return {"days": days, "total": total["n"], "by_type": {r["type"]: r["n"] for r in counts},
             "top": [_clean(i) for i in await hydrate([r["id"] for r in top])]}
 
@@ -235,9 +236,10 @@ class QueryPlan(BaseModel):
 
 
 PLAN_SYSTEM = "Convert a question about robotics research into search filters. Only set filters the question clearly implies."
-ANSWER_SYSTEM = """You answer questions for the Auki Labs team using ONLY the numbered sources provided.
+ANSWER_SYSTEM = """You answer questions about robotics news for the Auki Labs team using ONLY the numbered sources provided.
 Cite sources inline as [1], [2]. If the sources don't answer the question, say so plainly.
-Be concise: at most 8 sentences or a short bullet list. Mention why things matter to Auki when it's relevant."""
+Be concise: at most 8 sentences or a short bullet list. Answer the question as asked; only add an Auki angle
+when an item is clearly relevant to Auki's spatial-computing work."""
 
 
 async def ask(question: str, limit: int = 8) -> dict:
@@ -262,7 +264,8 @@ async def ask(question: str, limit: int = 8) -> dict:
         return {"answer": "I couldn't find anything in the database about that yet.", "sources": [], "plan": kw}
     context = "\n\n".join(
         f"[{n}] {r['title']} ({r['type']}, {r.get('published_at', 'n.d.')}; {', '.join(r.get('authors', [])[:4])})\n"
-        f"URL: {r['url']}\nSummary: {r.get('summary', '')}\nWhy it matters to Auki: {r.get('auki_relevance_reason', '')}"
+        f"URL: {r['url']}\nSummary: {r.get('summary', '')}\nImportance (0-1): {r.get('importance', '?')}\n"
+        f"Auki angle: {r.get('auki_relevance_reason', '')}"
         for n, r in enumerate(results, 1))
     answer, c = await llm.text(ANSWER_SYSTEM, f"Question: {question}\n\nSources:\n{context}", max_tokens=1200)
     cost += c

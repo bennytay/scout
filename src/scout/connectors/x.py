@@ -181,11 +181,15 @@ class XConnector(Connector):
                 out.errors.append(msg)
                 out.failed[s["id"]] = msg
                 continue
-            raw += got
+            tier = (s.get("config") or {}).get("tier", "discovery")
+            raw += [i.model_copy(update={"source_ref": tier}) for i in got]
             out.states[s["id"]] = {**state, "until": d_end.isoformat()}
 
         # 3. gate (free) before anything reaches the LLM
-        unique = list({i.url: i for i in raw}.values())
+        unique: dict[str, Item] = {}
+        for i in raw:  # first sighting wins: radar, then research discovery, then the stricter news search
+            unique.setdefault(i.url, i)
+        unique = list(unique.values())
         out.seen = len(unique)
         out.items, out.dropped = xsignal.gate_batch(unique, set(radar), now)
         log.info("x.gate", seen=out.seen, kept=len(out.items), dropped=dict(out.dropped))

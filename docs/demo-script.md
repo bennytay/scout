@@ -19,8 +19,8 @@ Discord.** Show, don't explain. Keep code on screen under 20 seconds in total.
 > Scout. It watches X, keeps the signal, and gives the team one place to search it."
 
 **0:20–1:20 · Monitoring** *(the status line resolves)*
-> "Every two hours it scans X two ways: about sixty trusted accounts, plus anyone who links to a paper or repo.
-> That's six API requests per scan."
+> "Every two hours it scans X two ways: about eighty trusted accounts across all of robotics, plus anyone who links to a paper or repo, or breaks big news.
+> That's nine API requests per scan."
 
 *(`📡 Scanned X: 127 posts → 74 passed the filter → 39 kept (+7 papers/repos they link to)`)*
 > "First, free rules drop spam and posts nobody's engaging with. Then Claude reads what's left and throws out
@@ -49,8 +49,8 @@ Discord.** Show, don't explain. Keep code on screen under 20 seconds in total.
 > "When an account outside the radar keeps getting through, Scout suggests it. A human decides with /follow."
 
 **3:30–4:00 · Why trust it** *(README: the funnel diagram, then the eval table)*
-> "It's measured: precision 1.0 on real posts. It does miss low-engagement paper mirrors, and that's on purpose.
-> It costs about ten dollars a month of Claude plus X credits, and it all runs on one laptop.
+> "It covers robotics in general. Each item gets an importance score, and a separate flag for what matters to Auki. It's measured: precision 1.0 on real posts.
+> It costs about twelve dollars a month of Claude plus X credits, and it all runs on one laptop.
 > It's also an MCP server, so Claude Desktop or Cursor can query the same database."
 
 ## If something goes wrong on camera

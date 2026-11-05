@@ -122,7 +122,7 @@ async def _retry_failed():
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(prog="scout", description="Robotics research radar for Auki Labs")
+    p = argparse.ArgumentParser(prog="scout", description="General robotics news radar (built for Auki Labs)")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("migrate", help="apply SQL migrations")
     i = sub.add_parser("ingest", help="run connectors")

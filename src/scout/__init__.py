@@ -1,1 +1,1 @@
-"""Scout: a robotics research radar for Auki Labs."""
+"""Scout: a general robotics news radar (built for Auki Labs)."""

@@ -70,15 +70,16 @@ async def insert_item(item: Item, canonical_url: str, e: Enrichment | None, embe
     row = await db.fetchrow(
         """insert into items (canonical_url, type, title, summary, full_text, published_at, source, source_ref,
                               submitted_by, arxiv_id, doi, metrics, entities, auki_relevance,
-                              auki_relevance_reason, enrich_status, enrich_model, cost_usd, embedding, outlinks)
-           values (%s, %s::item_type, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                              auki_relevance_reason, enrich_status, enrich_model, cost_usd, embedding, outlinks,
+                              importance)
+           values (%s, %s::item_type, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
            on conflict (canonical_url) do update set metrics = items.metrics || excluded.metrics
            returning id""",
         canonical_url, item.type.value, item.title[:500], e.summary if e else item.summary, item.full_text,
         item.published_at, item.source, item.source_ref, item.submitted_by, item.arxiv_id, item.doi,
         Jsonb(item.metrics), Jsonb(e.entities.model_dump() if e else {}),
         e.auki_relevance if e else None, e.auki_relevance_reason if e else None,
-        "done" if e else "failed", model, round(cost, 6), embedding, outlinks,
+        "done" if e else "failed", model, round(cost, 6), embedding, outlinks, e.importance if e else None,
     )
     item_id = row["id"]
     await db.execute(
@@ -114,11 +115,11 @@ async def apply_enrichment(item_id: int, e: Enrichment, cost: float, model: str)
     curated = bool(row and row["curated_at"])
     await db.execute(
         """update items set summary = %s, entities = %s, enrich_status = 'done', enrich_model = %s,
-                            cost_usd = cost_usd + %s,
+                            cost_usd = cost_usd + %s, importance = %s,
                             auki_relevance = case when %s then auki_relevance else %s end,
                             auki_relevance_reason = case when %s then auki_relevance_reason else %s end
            where id = %s""",
-        e.summary, Jsonb(e.entities.model_dump()), model, round(cost, 6),
+        e.summary, Jsonb(e.entities.model_dump()), model, round(cost, 6), e.importance,
         curated, e.auki_relevance, curated, e.auki_relevance_reason, item_id)
     if not curated:
         await set_topics(item_id, e.topics)

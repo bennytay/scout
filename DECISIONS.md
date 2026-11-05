@@ -180,3 +180,19 @@ a plain search when the filters were too strict). For lookups, Discord slash com
 `/author` (autocomplete from the authors table, word-start matches first), `/topic`, and `/recent`, which
 answers "what's stored?". MCP was trimmed to 4 tools for the same reason: `author_profile`, `trending` and
 `digest` were just search with extra steps. The OpenAI adapters went too (Claude only).
+
+### D26. General robotics scope: `importance` ranks, Auki relevance only marks (refines D20, D24)
+Scout was quietly an Auki-relevance filter: the brief dropped any candidate below 0.3 Auki relevance and ranked
+by it, and discovery only accepted posts linking to research. So a big humanoid IPO or a drone-delivery funding
+round could fall out. Now:
+- **Two scores, one call.** Enrichment adds `importance` (0–1, general significance for robotics, rubric in
+  `prompts/enrich.md`) next to `auki_relevance`. Importance selects and ranks brief candidates, orders
+  `/recent` and lists, and is shown on every item. Auki relevance is a 🔥 marker and a tie-breaker.
+- **Wider sources.** The radar adds autonomous driving, drones, industrial, surgical and more humanoid makers.
+  Discovery adds a drones, driving and surgical research search, plus a general-news search (launches,
+  funding, deployments). That news doesn't link to research, so the gate holds it to ≥50 likes and ≥1,000
+  followers instead. When a post matches several searches, the first one wins (radar, then research, then
+  news), so the stricter bar only applies to posts found only by the news search.
+- **Measured:** the X signal eval is unchanged (precision 1.00). On the demo data, the brief went from 41 to
+  114 candidates, the Agility IPO moved from #7 to #1, and a drone-inspection story entered the top 10.
+- Existing items were backfilled with `importance` by re-enrichment ($0.05 for 362 items).

@@ -1,4 +1,5 @@
-"""LLM enrichment: summary, topics, authors/orgs, entities, Auki relevance. One structured call per item."""
+"""LLM enrichment: summary, topics, authors/orgs, entities, importance,
+Auki relevance, signal. One structured call per item."""
 from functools import lru_cache
 from pathlib import Path
 
@@ -48,6 +49,7 @@ def item_prompt(item: Item) -> str:
 async def enrich(llm: LLM, item: Item) -> tuple[Enrichment, float]:
     e, cost = await llm.structured(system_prompt(), item_prompt(item), Enrichment)
     e.auki_relevance = max(0.0, min(1.0, e.auki_relevance))
+    e.importance = max(0.0, min(1.0, e.importance))
     e.topics = list(dict.fromkeys(e.topics))[:3] or ["other"]
     # Source metadata beats LLM extraction for authors when we have it (arXiv, HF).
     if item.authors:

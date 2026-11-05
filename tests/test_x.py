@@ -42,6 +42,16 @@ def test_spam_and_tickers_are_dropped():
     assert xsignal.gate(post(text="Our policy runs 10x faster on the G1 humanoid"), False, NOW) is None
 
 
+def test_general_news_needs_no_research_link_but_a_higher_bar():
+    news = post(text="Zipline raises $600M to scale drone delivery", links=("https://techcrunch.com/x",))
+    assert xsignal.gate(news.model_copy(update={"source_ref": "news"}), False, NOW) is None
+    weak = post(likes=20, links=("https://techcrunch.com/x",)).model_copy(update={"source_ref": "news"})
+    assert xsignal.gate(weak, False, NOW) == "low_engagement"
+    small = post(likes=80, followers=300, links=()).model_copy(update={"source_ref": "news"})
+    assert xsignal.gate(small, False, NOW) == "low_reputation"
+    assert xsignal.gate(post(links=("https://techcrunch.com/x",)), False, NOW) == "no_research_link"
+
+
 def test_engagement_and_reputation():
     assert xsignal.gate(post(likes=3), False, NOW) == "low_engagement"
     assert xsignal.gate(post(likes=20, followers=20), False, NOW) == "low_reputation"
@@ -90,7 +100,8 @@ async def test_scan_batches_radar_and_delays_discovery():
     radar = json.loads(fixture("x_search_radar.json"))
     handles = sorted({u["username"] for u in radar["includes"]["users"]})
     sources = [{"id": i, "kind": "x_account", "value": h, "cursor": {}} for i, h in enumerate(handles)]
-    sources.append({"id": 99, "kind": "x_query", "value": "url:arxiv.org robot", "cursor": {}})
+    sources.append({"id": 99, "kind": "x_query", "value": "url:arxiv.org robot", "cursor": {},
+                    "config": {"tier": "discovery"}})
     since = datetime.now(UTC) - timedelta(days=2)
     async with http_client() as http:
         res = await REGISTRY["x"].fetch_many(http, sources, since)

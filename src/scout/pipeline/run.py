@@ -205,7 +205,8 @@ async def run_connector(name: str, since: datetime | None = None, only_value: st
     since = since or datetime.now(UTC) - timedelta(days=s.lookback_days)
     run = await db.fetchrow("insert into ingest_runs (connector) values (%s) returning id", name)
     sources = await db.fetch(
-        "select id, kind, value, cursor from sources where enabled and kind = any(%s) order by id", list(connector.kinds)
+        "select id, kind, value, cursor, config from sources where enabled and kind = any(%s) order by id",
+        list(connector.kinds)
     )
     if only_value:
         sources = [x for x in sources if x["value"] == only_value]

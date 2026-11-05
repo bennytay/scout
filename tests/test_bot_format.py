@@ -10,11 +10,11 @@ def item(n: int, rel: float, **kw) -> dict:
 
 
 def test_link_reply_is_four_bullets():
-    msg = link_reply(item(7, 0.82, summary="First sentence here. Second sentence ignored.", topics=["slam-spatial-mapping"],
+    msg = link_reply(item(7, 0.82, importance=0.64, summary="First sentence here. Second sentence ignored.", topics=["slam-spatial-mapping"],
                           authors=["A", "B", "C", "D"], orgs=["ETH Zurich"],
                           related=[{"title": "Repo", "url": "https://github.com/a/b"}]))
     lines = msg.splitlines()
-    assert lines[0].endswith("· relevance 0.82") and len(lines) == 5
+    assert lines[0].endswith("· importance 0.64 · 🔥 Auki") and len(lines) == 5
     assert lines[1] == "• **What:** First sentence here."
     assert lines[3] == "• **Topics:** slam-spatial-mapping · **Who:** A, B, C et al. · ETH Zurich"
     assert lines[4] == "• **Related:** [Repo](<https://github.com/a/b>)"
@@ -70,6 +70,8 @@ def test_item_list_shows_what_a_post_links_to():
     msg = item_list("🏷️ **vla**", [post], links)
     assert "[paper: pi-0.7](<https://arxiv.org/abs/2611.00001>)" in msg and "[code: openpi]" in msg
     assert "💬 [@physical_int: pi-0.7 is out](<https://x.com/physical_int/status/1>) · 0.70 · 2026-11-04" in msg
+    hot = item_list("h", [dict(post, importance=0.9, auki_relevance=0.8)])
+    assert "· 0.90 🔥 · 2026-11-04" in hot  # importance shown; 🔥 marks Auki relevance
     many = [dict(post, id=n, title=f"Post {n} " + "x" * 80) for n in range(60)]
     assert len(item_list("h", many)) <= LIMIT and item_list("h", many).endswith("…")
     assert item_list("h", []) == "h\nNothing stored yet."

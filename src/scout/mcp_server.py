@@ -14,11 +14,12 @@ from .pipeline.run import ingest_url
 mcp = MCPServer(
     "scout",
     instructions=(
-        "Scout is Auki Labs' robotics news radar. X is the newsroom: high-signal robotics posts, plus the papers, "
+        "Scout is a general robotics news radar (built for Auki Labs). X is the newsroom: high-signal robotics posts, plus the papers, "
         "repos, models and datasets they link to, plus links the team shares in Discord. "
         "Use `search` for everything: free text (hybrid keyword + semantic) and/or structured fields. "
         "To look up a person, lab or topic, fill `author`, `org` or `topic` instead of putting names in `query`. "
-        "Always cite items by their `url`. `auki_relevance` (0-1) says how much an item matters to Auki."
+        "Always cite items by their `url`. `importance` (0-1) is general significance for robotics; "
+        "`auki_relevance` (0-1) is how much it matters to Auki specifically (secondary)."
     ),
 )
 

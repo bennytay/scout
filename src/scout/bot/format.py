@@ -29,8 +29,10 @@ def source_failed(source: str, errors: list[str]) -> str:
 def link_reply(item: dict, duplicate: bool = False) -> str:
     """Reply to a team-shared link: 4 bullets."""
     head = f"{ICON.get(item.get('type'), '🔗')} **{_link(item['title'], item['url'], 110)}**"
-    if item.get("auki_relevance") is not None:
-        head += f" · relevance {item['auki_relevance']:.2f}"
+    if item.get("importance") is not None:
+        head += f" · importance {item['importance']:.2f}"
+    if (item.get("auki_relevance") or 0) >= 0.75:
+        head += " · 🔥 Auki"
     if duplicate:
         head += f" · already tracked (seen in {', '.join(LABEL.get(s, s) for s in item.get('seen_in', []))})"
     who = ", ".join(item.get("authors", [])[:3]) + (" et al." if len(item.get("authors", [])) > 3 else "")
@@ -88,8 +90,11 @@ def item_line(item: dict, links: list[dict] | None = None) -> str:
     from ..brief import link_label
 
     line = f"{ICON.get(item.get('type'), '🔗')} {_link(item['title'], item['url'], 85)}"
-    if item.get("auki_relevance") is not None:
-        line += f" · {item['auki_relevance']:.2f}"
+    score = item.get("importance", item.get("auki_relevance"))
+    if score is not None:
+        line += f" · {score:.2f}"
+    if (item.get("auki_relevance") or 0) >= 0.75:
+        line += " 🔥"
     if item.get("published_at"):
         line += f" · {str(item['published_at'])[:10]}"
     if links:

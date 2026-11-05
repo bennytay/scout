@@ -60,6 +60,7 @@ class Enrichment(BaseModel):
     authors: list[str] = Field(description="Person authors, full names. Empty if unknown.")
     orgs: list[str] = Field(description="Organisations/labs/companies involved. Canonical names.")
     entities: Entities
+    importance: float = Field(0.5, description="0-1 how significant this is for robotics in general, per the rubric.")
     auki_relevance: float = Field(description="0-1 relevance to Auki Labs, per the rubric.")
     auki_relevance_reason: str = Field(description="One sentence: why it matters (or not) to Auki.")
     signal: Literal["news", "discussion", "promo", "off_topic", "noise"] = Field(

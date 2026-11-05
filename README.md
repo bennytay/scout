@@ -1,4 +1,4 @@
-# Scout: a robotics news radar for Auki Labs
+# Scout: a robotics news radar (built for Auki Labs)
 
 **X is where robotics news breaks.** Scout watches X for high-signal robotics posts, follows each one to the
 paper, code and model it points at, and stores all of it in one searchable database. It also reads the links the
@@ -13,6 +13,14 @@ team drops in Discord. You use it from Discord or from any LLM client:
 
 That's the whole product: **monitor (X + Discord) → store → search, by meaning or by author/topic.**
 
+**Scope: robotics news in general**, not just what's relevant to Auki: humanoids, industrial and warehouse
+robots, drones, autonomous driving, surgical robots and research. Every item gets two scores from the same
+Claude call:
+- **`importance`** (0–1): how significant it is for robotics as a whole. This decides what's kept in the brief,
+  how stories are ranked, and how `/recent` and `/topic` are ordered.
+- **`auki_relevance`** (0–1): how much it matters to Auki specifically. It's a secondary marker (🔥) and a
+  tie-breaker, never a filter.
+
 ## How Scout finds the signal on X
 
 X is noisy: spam, engagement bait, crypto, hot takes. Scout gets to the signal in six steps, and the cheap steps
@@ -20,7 +28,7 @@ come first:
 
 ```mermaid
 flowchart LR
-  R[1 · Radar<br/>~64 trusted accounts<br/>labs · companies · researchers · curators] --> G
+  R[1 · Radar<br/>~80 trusted accounts<br/>labs · companies · researchers · curators] --> G
   D[2 · Discovery<br/>posts from anyone that link to<br/>arXiv · GitHub · HF · project pages] --> G
   G[3 · Gate · free<br/>spam lexicon · research link<br/>likes · followers · account age<br/>per-author cap · copy-paste] --> J
   J[4 · Judge · Claude Haiku<br/>news · discussion · promo<br/>off_topic · noise] -->|news / discussion| S[(Postgres)]
@@ -29,9 +37,13 @@ flowchart LR
 ```
 
 1. **Radar (who):** curated accounts, packed into `from:a OR from:b …` searches under X's 512-character query
-   limit. 64 accounts take 3 requests, not 64. They're trusted, so they skip the gate.
-2. **Discovery (what):** three searches for posts *from anyone* that link to research and mention robotics
-   (one is tuned to Auki's core: SLAM, relocalization, 3D reconstruction). A research link is the strongest
+   limit. 80 accounts take 4 requests, not 80. They cover humanoids, research labs, autonomous driving
+   (Waymo), drones (Zipline, Skydio), industrial (ABB, ANYbotics) and surgical (Intuitive). They're trusted,
+   so they skip the gate.
+2. **Discovery (what):** four searches for posts *from anyone* that link to research. They cover robot
+   learning, code and models; drones, autonomous driving and surgical robots; and spatial AI. A fifth search
+   finds **general news** (launches, funding, acquisitions, deployments). That news links to press and company
+   sites rather than papers, so it's held to a higher bar instead: ≥50 likes and ≥1,000 followers. A research link is the strongest
    single anti-spam signal. Discovery reads a window that ends **6 hours ago**, so likes have time to build up
    before the gate looks at them.
 3. **Gate (free, before any LLM):**
@@ -104,7 +116,7 @@ typo-tolerant ("Huter" finds Hutter).
 | | What happens |
 |---|---|
 | **#feed** | Every 2h a status line: `📡 Scanned X: 127 posts → 74 passed the filter → 39 kept (+7 papers/repos)`. Every 6h, **the brief**: the top 7–10 stories since the last one, written by Claude Opus. Each story is led by an X post and linked to its paper, code and model. Radar suggestions and health problems also appear here. |
-| **#links** | Paste any link (an X post, paper, repo or article) and get a 4-bullet reply: what it is, why it matters to Auki, topics and authors, and related items already stored. X posts are followed through to their paper and repo. |
+| **#links** | Paste any link (an X post, paper, repo or article) and get a 4-bullet reply: what it is, how important it is, the Auki angle, topics and authors, and related items already stored. X posts are followed through to their paper and repo. |
 | **@Scout** *question* | Plain-language answer from the database, with numbered source links. Also available as `/ask`. |
 | `/author name` | Everything stored from one person: topics, orgs, co-authors, recent items. Autocompletes from the database. |
 | `/topic topic [days]` | The latest items on a topic. Each post shows what it links to (`paper: …`, `code: …`). |
@@ -198,11 +210,11 @@ Full breakdown: [`evals/results.md`](evals/results.md).
 | | Basis | $/month |
 |---|---|---|
 | Judge + tagging (Claude Haiku 5.5) | ≈$0.0005 per judged post or linked paper (measured: $0.043 for 74 + 7); ~200/day | ~$3 |
-| Brief (Claude Opus 5.5) | ≈$0.05 per brief (measured), 4/day | ~$6 |
+| Brief (Claude Opus 5.5) | ≈$0.05–0.09 per brief (measured; more candidates now that scope is general), 4/day | ~$8 |
 | @Scout questions (Claude Haiku 5.5) | ≈$0.002 per question | cents |
 | Embeddings, Postgres, slash commands | local / no LLM | $0 |
-| X API (pay-per-use) | 6 requests per scan (3 radar + 3 discovery), ≤100 posts each; each post read once (time cursors); 12 scans/day | your X credits (check X's current per-read price) |
-| **Total** | | **≈$10/month of Claude + X credits** |
+| X API (pay-per-use) | 9 requests per scan (4 radar + 5 discovery), ≤100 posts each; each post read once (time cursors); 12 scans/day | your X credits (check X's current per-read price) |
+| **Total** | | **≈$12/month of Claude + X credits** |
 
 Per-item cost is in `items.cost_usd`, per scan in `ingest_runs.cost_usd`.
 
@@ -223,7 +235,7 @@ The full reasoning is in [DECISIONS.md](DECISIONS.md) (D23–D25 cover this X-fi
 
 - **Discovery recall is low by design** (above). The radar carries most of the signal, which is why `/follow` and
   the learn step exist.
-- **Radar seed list:** 64 accounts I chose. Auki should prune and extend it with `/follow` and `/unfollow`.
+- **Radar seed list:** ~80 accounts I chose. Auki should prune and extend it with `/follow` and `/unfollow`.
 - **X recent search covers 7 days,** so a backfill can't reach further back.
 - **Author disambiguation is name-based:** two "Wei Zhang"s collapse into one.
 - **No PDF full text:** papers are tagged and searched from title and abstract.
@@ -241,7 +253,7 @@ The full reasoning is in [DECISIONS.md](DECISIONS.md) (D23–D25 cover this X-fi
 
 ```
 migrations/        schema, hybrid search function, X radar + discovery seeds (011)
-prompts/           enrichment + judge prompt, Auki relevance rubric
+prompts/           enrichment + judge prompt (importance, signal), Auki relevance rubric
 src/scout/
   xsignal.py       the gate: spam, research link, engagement, reputation, caps, query packing
   connectors/      x (the scan), arxiv / github / huggingface (resolvers), resolve (any URL → Item)

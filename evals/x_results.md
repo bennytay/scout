@@ -1,6 +1,6 @@
 # X signal eval
 
-62 real posts from one live scan (12 radar, 50 discovery), 31 labelled keep by content alone. Judge: `claude-haiku-5-5`, cost $0.0097. Run 2026-11-05.
+62 real posts from one live scan (12 radar, 50 discovery), 31 labelled keep by content alone. Judge: `claude-haiku-5-5`, cost $0.0105. Run 2026-11-05.
 
 | stage | posts kept | precision | recall | F1 |
 |---|---|---|---|---|
@@ -14,7 +14,7 @@ and paper summarisers with 0-5 likes: the paper exists, but nobody on X is discu
 'X is the newsroom' filters for. Caveat: this snapshot was recorded minutes to hours after posting; live
 discovery only judges posts 6h+ old, after likes accrue, so this recall is a lower bound.
 
-Gate drop reasons: {'low_engagement': 45, 'spam': 1}. Judge labels: {'noise': 4, 'news': 8, 'discussion': 2, 'off_topic': 1, 'promo': 1}.
+Gate drop reasons: {'low_engagement': 45, 'spam': 1}. Judge labels: {'noise': 3, 'news': 8, 'discussion': 2, 'off_topic': 2, 'promo': 1}.
 
 ## Disagreements
 

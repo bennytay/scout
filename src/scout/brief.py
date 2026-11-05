@@ -1,5 +1,6 @@
 """The news brief: a reasoning layer on top of the per-item pipeline.
 
+Covers robotics in general: `importance` (general significance) selects and ranks; Auki relevance only marks 🔥.
 Per-source updates are fragmented ("56 arXiv papers, 52 HF items…"). The brief answers the real question,
 *what happened?*, in 7-10 stories:
 
@@ -41,8 +42,8 @@ class Brief(BaseModel):
     stories: list[Story] = Field(description="7-10 stories, most important first (fewer if the period was quiet).")
 
 
-SYSTEM = """You are the editor of a robotics news brief for the Auki Labs team. From the numbered candidate items,
-write the top 7-10 stories of this period.
+SYSTEM = """You are the editor of a general robotics news brief (read by the Auki Labs team). From the numbered
+candidate items, write the top 7-10 stories of this period in robotics as a whole.
 
 Rules:
 - A story is one development: a model or product release, a paper, a funding round, a demo, a dataset.
@@ -51,13 +52,15 @@ Rules:
   direct source (the paper, repo or model itself).
 - supporting_ids: other candidates about the same story, most useful first (paper, code, model, dataset,
   discussion), at most 4. Never reuse an id in two stories.
-- Rank by importance to a team building spatial computing and robots that share an understanding of space:
-  real capability jumps and major releases first, then what people are talking about (likes, upvotes, stars,
-  number of sources), then relevance to Auki. Skip minor incremental papers when there is real news.
+- Rank by importance to robotics in general, like a good trade-press editor: real capability jumps, major
+  launches, big funding and deployments first, then what people are talking about (likes, upvotes, stars,
+  number of sources). Cover the breadth of the field (humanoids, industrial, drones, autonomy, research)
+  rather than one niche. Skip minor incremental papers when there is real news. Auki relevance ("auki" in each
+  line) is only a tie-breaker.
 - headline: <= 12 words, concrete, like a good news headline. why: one sentence <= 22 words.
 - Only use facts in the candidate text. Only use candidate ids.
 
-What Auki cares about:
+For the tie-breaker, what Auki cares about:
 {auki}"""
 
 
@@ -97,15 +100,16 @@ def link_label(c: dict) -> str:
 
 async def candidates(since: datetime, until: datetime) -> dict[int, dict]:
     cols = """i.id, i.type::text as type, i.title, i.summary, i.canonical_url as url, i.source,
-              coalesce(i.auki_relevance, 0) as rel, i.metrics,
+              coalesce(i.auki_relevance, 0) as rel, coalesce(i.importance, i.auki_relevance, 0) as imp, i.metrics,
               (select count(distinct s.source) from item_sources s where s.item_id = i.id) as n_sources"""
-    win = "i.ingested_at >= %s and i.ingested_at < %s and coalesce(i.auki_relevance, 0) >= 0.3"
+    win = "i.ingested_at >= %s and i.ingested_at < %s and coalesce(i.importance, i.auki_relevance, 0) >= 0.3"
     x_posts = await db.fetch(
         f"""select {cols} from items i where {win} and i.canonical_url like 'https://x.com/%%'
-            order by coalesce((i.metrics->>'x_likes')::float, 0) desc limit {MAX_X}""", since, until)
+            order by 2 * coalesce(i.importance, 0) + ln(1 + coalesce((i.metrics->>'x_likes')::float, 0)) desc
+            limit {MAX_X}""", since, until)
     others = await db.fetch(
         f"""select {cols} from items i where {win} and i.canonical_url not like 'https://x.com/%%'
-            order by 2 * coalesce(i.auki_relevance, 0)
+            order by 3 * coalesce(i.importance, i.auki_relevance, 0) + 0.5 * coalesce(i.auki_relevance, 0)
                      + ln(1 + coalesce((i.metrics->>'hf_upvotes')::float, 0))
                      + ln(1 + coalesce((i.metrics->>'hn_points')::float, 0))
                      + 0.5 * ln(1 + coalesce((i.metrics->>'gh_stars')::float, 0))
@@ -141,7 +145,8 @@ def candidate_lines(pool: dict[int, dict]) -> str:
         kind = "X POST" if c["url"].startswith("https://x.com/") else c["type"].upper()
         rel = [f"links→{c['links']}"] if c.get("links") else []
         rel += [f"similar→{c['near']}"] if c.get("near") else []
-        return (f"[{c['id']}] {kind} · {SOURCE_NAME.get(c['source'], c['source'])} · rel {c['rel']:.2f}"
+        return (f"[{c['id']}] {kind} · {SOURCE_NAME.get(c['source'], c['source'])} · importance {c['imp']:.2f}"
+                f" · auki {c['rel']:.2f}"
                 f"{' · ' + _buzz(c['metrics']) if _buzz(c['metrics']) else ''}"
                 f"{' · seen in ' + str(c['n_sources']) + ' sources' if c['n_sources'] > 1 else ''}\n"
                 f"    {c['title'][:160]}: {_first_sentence(c['summary'])} {' '.join(rel)}")
