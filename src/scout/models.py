@@ -43,6 +43,7 @@ class Item(BaseModel):
     metrics: dict[str, float] = Field(default_factory=dict)
     outlinks: list[str] = Field(default_factory=list)   # URLs mentioned in the item (for linking)
     author_handles: dict[str, str] = Field(default_factory=dict)  # e.g. {"x": "DrJimFan"}
+    media: dict[str, str] = Field(default_factory=dict)  # {"image": post photo/video thumbnail, "avatar": poster}
 
 
 class Entities(BaseModel):

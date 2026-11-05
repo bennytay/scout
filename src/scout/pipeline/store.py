@@ -71,15 +71,17 @@ async def insert_item(item: Item, canonical_url: str, e: Enrichment | None, embe
         """insert into items (canonical_url, type, title, summary, full_text, published_at, source, source_ref,
                               submitted_by, arxiv_id, doi, metrics, entities, auki_relevance,
                               auki_relevance_reason, enrich_status, enrich_model, cost_usd, embedding, outlinks,
-                              importance)
-           values (%s, %s::item_type, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-           on conflict (canonical_url) do update set metrics = items.metrics || excluded.metrics
+                              importance, media)
+           values (%s, %s::item_type, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+           on conflict (canonical_url) do update set metrics = items.metrics || excluded.metrics,
+                                                     media = items.media || excluded.media
            returning id""",
         canonical_url, item.type.value, item.title[:500], e.summary if e else item.summary, item.full_text,
         item.published_at, item.source, item.source_ref, item.submitted_by, item.arxiv_id, item.doi,
         Jsonb(item.metrics), Jsonb(e.entities.model_dump() if e else {}),
         e.auki_relevance if e else None, e.auki_relevance_reason if e else None,
         "done" if e else "failed", model, round(cost, 6), embedding, outlinks, e.importance if e else None,
+        Jsonb(item.media),
     )
     item_id = row["id"]
     await db.execute(

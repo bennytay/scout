@@ -77,6 +77,20 @@ def test_batch_queries_fit_the_limit_and_keep_every_handle():
     assert len(batches) <= 5
 
 
+def test_post_media_from_api_and_fxtwitter():
+    page = {"data": [{"id": "1", "text": "Our robot", "author_id": "u", "attachments": {"media_keys": ["v", "p"]}}],
+            "includes": {"users": [{"id": "u", "username": "lab",
+                                    "profile_image_url": "https://pbs.twimg.com/x_normal.jpg"}],
+                         "media": [{"media_key": "v", "type": "video", "preview_image_url": "https://pbs.twimg.com/v.jpg"},
+                                   {"media_key": "p", "type": "photo", "url": "https://pbs.twimg.com/p.jpg"}]}}
+    [it] = xconn.parse_page(page)
+    assert it.media == {"image": "https://pbs.twimg.com/v.jpg", "avatar": "https://pbs.twimg.com/x_bigger.jpg"}
+    assert xconn.fx_media({"media": {"photos": [{"url": "https://pbs.twimg.com/f.jpg"}]},
+                           "author": {"avatar_url": "https://pbs.twimg.com/a.jpg"}}) == {
+        "image": "https://pbs.twimg.com/f.jpg", "avatar": "https://pbs.twimg.com/a.jpg"}
+    assert xconn.fx_media({}) == {}
+
+
 def test_follow_targets_pick_research_links():
     from scout.pipeline.run import follow_targets
 

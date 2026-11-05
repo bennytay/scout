@@ -22,8 +22,9 @@ from .base import Connector, FetchResult, register
 API = "https://api.x.com/2"
 FX = "https://api.fxtwitter.com/status/{id}"
 TWEET_FIELDS = "created_at,public_metrics,entities,author_id,note_tweet"
-USER_FIELDS = "name,username,public_metrics,created_at,verified_type"
-COMMON = {"tweet.fields": TWEET_FIELDS, "expansions": "author_id", "user.fields": USER_FIELDS}
+USER_FIELDS = "name,username,public_metrics,created_at,verified_type,profile_image_url"
+COMMON = {"tweet.fields": TWEET_FIELDS, "expansions": "author_id,attachments.media_keys", "user.fields": USER_FIELDS,
+          "media.fields": "url,preview_image_url,type"}
 RADAR_SUFFIX = "-is:retweet -is:reply"
 DISCOVERY_SUFFIX = "-is:retweet -is:reply lang:en"
 QUERY_LIMIT = 512  # verified against the API: "query length must be <= 512"
@@ -67,7 +68,21 @@ def _user_metrics(user: dict) -> dict[str, float]:
     return out
 
 
-def tweet_item(t: dict, users: dict[str, dict], source: str = "x", source_ref: str | None = None) -> Item:
+def _media(t: dict, user: dict, media: dict[str, dict]) -> dict[str, str]:
+    """The post's first photo (or video thumbnail) and the poster's avatar, for the brief's cards."""
+    out = {}
+    for key in (t.get("attachments") or {}).get("media_keys", []):
+        m = media.get(key) or {}
+        if url := m.get("url") or m.get("preview_image_url"):
+            out["image"] = url
+            break
+    if avatar := user.get("profile_image_url"):
+        out["avatar"] = avatar.replace("_normal.", "_bigger.")
+    return out
+
+
+def tweet_item(t: dict, users: dict[str, dict], source: str = "x", source_ref: str | None = None,
+               media: dict[str, dict] | None = None) -> Item:
     user = users.get(t.get("author_id"), {})
     handle = user.get("username") or "i"
     text = (t.get("note_tweet") or {}).get("text") or t.get("text") or ""
@@ -84,12 +99,28 @@ def tweet_item(t: dict, users: dict[str, dict], source: str = "x", source_ref: s
                  "x_quotes": m.get("quote_count", 0), "x_impressions": m.get("impression_count", 0),
                  **_user_metrics(user)},
         outlinks=list(dict.fromkeys(links)),
+        media=_media(t, user, media or {}),
     )
 
 
 def parse_page(data: dict, source_ref: str | None = None) -> list[Item]:
-    users = {u["id"]: u for u in (data.get("includes") or {}).get("users", [])}
-    return [tweet_item(t, users, source_ref=source_ref) for t in data.get("data") or []]
+    inc = data.get("includes") or {}
+    users = {u["id"]: u for u in inc.get("users", [])}
+    media = {m["media_key"]: m for m in inc.get("media", [])}
+    return [tweet_item(t, users, source_ref=source_ref, media=media) for t in data.get("data") or []]
+
+
+def fx_media(t: dict) -> dict[str, str]:
+    """Image + avatar from an fxtwitter `tweet` object (free; used for shared links and the backfill)."""
+    out = {}
+    m = t.get("media") or {}
+    if photos := m.get("photos"):
+        out["image"] = photos[0].get("url")
+    elif videos := m.get("videos"):
+        out["image"] = videos[0].get("thumbnail_url")
+    if avatar := (t.get("author") or {}).get("avatar_url"):
+        out["avatar"] = avatar
+    return {k: v for k, v in out.items() if v}
 
 
 async def resolve_post(http: httpx.AsyncClient, url: str) -> Item | None:
@@ -101,13 +132,14 @@ async def resolve_post(http: httpx.AsyncClient, url: str) -> Item | None:
         links = [f.get("original") or f.get("url") for f in (t.get("raw_text") or {}).get("facets", [])
                  if f.get("type") == "url"]
         author = t.get("author") or {}
-        return tweet_item({
+        item = tweet_item({
             "id": t["id"], "text": t.get("text"), "author_id": "a",
             "created_at": datetime.fromtimestamp(t["created_timestamp"], tz=UTC).isoformat()
             if t.get("created_timestamp") else None,
             "public_metrics": {"like_count": t.get("likes", 0), "retweet_count": t.get("retweets", 0)},
             "entities": {"urls": [{"expanded_url": l} for l in links if l]},
         }, {"a": {"username": author.get("screen_name"), "name": author.get("name")}})
+        return item.model_copy(update={"media": fx_media(t)})
     if settings().x_enabled:
         r = await http.get(f"{API}/tweets/{m.group(1)}", params=COMMON, headers=await _headers(http))
         if r.status_code == 200:
