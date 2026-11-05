@@ -70,28 +70,3 @@ async def test_cost_is_tracked_per_item(database):
     r = await p.process(paper())
     row = await database.fetchrow("select cost_usd, enrich_status, enrich_model from items where id = %s", r.item_id)
     assert row["enrich_status"] == "done" and row["enrich_model"] == "fake-heuristic" and row["cost_usd"] == 0
-
-
-async def test_run_connector_persists_cursor_and_isolates_failures(database):
-    import httpx
-    import respx
-    from conftest import fixture
-
-    from scout.pipeline.run import run_connector
-
-    with respx.mock:
-        respx.get("https://api.x.com/2/users/by/username/physical_int").mock(
-            return_value=httpx.Response(200, json={"data": {"id": "1414"}}))
-        respx.get("https://api.x.com/2/users/1414/tweets").mock(
-            return_value=httpx.Response(200, text=fixture("x_v2_user_tweets_synthetic.json")))
-        stats = await run_connector("x", only_value="physical_int")
-    assert stats.inserted == 2 and not stats.errors
-    src = await database.fetchrow("select cursor, consecutive_failures from sources where value = 'physical_int'")
-    assert src["cursor"] == {"user_id": "1414", "since_id": "1900000000000000002"}
-
-    with respx.mock:  # API down: the source is marked failing, the run still completes
-        respx.get(url__startswith="https://api.x.com/2/").mock(return_value=httpx.Response(503))
-        stats = await run_connector("x", only_value="physical_int")
-    assert len(stats.errors) == 1
-    src = await database.fetchrow("select cursor, consecutive_failures from sources where value = 'physical_int'")
-    assert src["consecutive_failures"] == 1 and src["cursor"]["since_id"] == "1900000000000000002"

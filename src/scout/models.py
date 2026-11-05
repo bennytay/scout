@@ -62,3 +62,5 @@ class Enrichment(BaseModel):
     entities: Entities
     auki_relevance: float = Field(description="0-1 relevance to Auki Labs, per the rubric.")
     auki_relevance_reason: str = Field(description="One sentence: why it matters (or not) to Auki.")
+    signal: Literal["news", "discussion", "promo", "off_topic", "noise"] = Field(
+        "news", description="What kind of item this is, per the signal rules. Decides whether an X post is kept.")

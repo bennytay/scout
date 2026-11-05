@@ -16,27 +16,45 @@ from ..config import settings
 from ..connectors import REGISTRY, http_client
 from ..connectors.resolve import resolve
 from ..log import log
-from ..models import Item
+from ..models import Item, ItemType
 from ..providers.embeddings import get_embedder
 from ..providers.llm import get_llm
 from ..urls import arxiv_id_from, canonicalize, doi_from
+from ..xsignal import DROP_SIGNALS
 from . import dedupe, store
 from .enrich import enrich
 from .link import extract_outlinks, link_item
+
+FOLLOW = ("https://arxiv.org/abs/", "https://github.com/", "https://huggingface.co/")
+MAX_FOLLOW = 3
+
+
+def is_scanned_x_post(item: Item) -> bool:
+    """X posts found by the scan are judged; posts the team shared are always kept."""
+    return item.source == "x" and item.type == ItemType.post and not item.submitted_by
+
+
+def follow_targets(item: Item) -> list[str]:
+    """The research an item points at: arXiv papers, GitHub repos, HF models/datasets, project pages."""
+    me = canonicalize(item.url)
+    out = [u for u in extract_outlinks(item.outlinks, item.full_text) if u != me
+           and (u.startswith(FOLLOW) or ".github.io/" in u or u.endswith(".github.io"))]
+    return out[:MAX_FOLLOW]
 
 
 @dataclass
 class Result:
     item_id: int | None
-    status: str  # inserted | duplicate | failed
+    status: str  # inserted | duplicate | dropped (judged low-signal) | failed
     cost: float = 0.0
     error: str | None = None
 
 
 @dataclass
 class RunStats:
-    fetched: int = 0
+    fetched: int = 0      # read from the source (for X: before the gate)
     inserted: int = 0
+    dropped: int = 0      # X: removed by the gate or the judge
     duplicates: int = 0
     failed: int = 0
     cost: float = 0.0
@@ -81,6 +99,9 @@ class Pipeline:
         except Exception as e:  # store the item anyway; enrich_status='failed' lets us retry later
             log.warning("enrich.failed", url=url, error=repr(e)[:300])
         cost += llm_cost
+        if enrichment and is_scanned_x_post(item) and enrichment.signal in DROP_SIGNALS:
+            log.info("item.judged_out", url=url, signal=enrichment.signal)
+            return Result(None, "dropped", cost)
 
         outlinks = [u for u in extract_outlinks(item.outlinks, item.full_text) if u != url]
         item_id = await store.insert_item(item, url, enrichment, vec, cost, self.llm.model, outlinks)
@@ -90,12 +111,82 @@ class Pipeline:
         return Result(item_id, "inserted", cost)
 
 
+    async def follow(self, http: httpx.AsyncClient, item: Item) -> None:
+        """Ingest what a kept post links to (paper, repo, model) and link them to it. Dedupes as usual."""
+        for u in follow_targets(item):
+            try:
+                sub = await self.process(await resolve(http, u, source=item.source))
+                if sub.item_id:
+                    await link_item(sub.item_id)
+            except Exception as e:
+                log.warning("outlink.failed", url=u, error=repr(e)[:200])
+
+
 @retry(retry=retry_if_exception_type((httpx.TransportError, httpx.HTTPStatusError)),
        stop=stop_after_attempt(3), wait=wait_exponential(min=2, max=30), reraise=True)
 async def _fetch(connector, http, kind, value, since, state):
     if connector.stateful:
         return await connector.fetch(http, kind, value, since, state=state)
     return await connector.fetch(http, kind, value, since)
+
+
+async def _fetch_one(connector, http, src, since, stats: RunStats) -> list[Item]:
+    try:
+        state = dict(src["cursor"] or {})
+        items = (await _fetch(connector, http, src["kind"], src["value"], since, state))[: settings().max_items_per_source]
+        await _source_ok(src["id"], state)
+    except Exception as e:
+        msg = f"{src['kind']}:{src['value']}: {e!r}"[:500]
+        stats.errors.append(msg)
+        log.error("source.failed", connector=connector.name, source=src["value"], error=repr(e)[:300])
+        await _source_failed(src["id"], msg)
+        return []
+    stats.fetched += len(items)
+    return items
+
+
+async def _fetch_many(connector, http, sources, since, stats: RunStats) -> list[Item]:
+    try:
+        res = await connector.fetch_many(http, sources, since)
+    except Exception as e:  # e.g. auth failure: the whole scan fails, the bot reports it
+        stats.errors.append(f"{connector.name}: {e!r}"[:500])
+        log.error("connector.fetch_failed", connector=connector.name, error=repr(e)[:300])
+        return []
+    for sid, state in res.states.items():
+        await _source_ok(sid, state)
+    for sid, msg in res.failed.items():
+        await _source_failed(sid, msg)
+    stats.errors += res.errors
+    stats.fetched += res.seen
+    stats.dropped += sum(res.dropped.values())
+    return res.items
+
+
+async def _source_ok(source_id: int, state: dict) -> None:
+    await db.execute(
+        """update sources set last_run_at = now(), last_success_at = now(), cursor = %s,
+           last_error = null, consecutive_failures = 0 where id = %s""", Jsonb(state), source_id)
+
+
+async def _source_failed(source_id: int, msg: str) -> None:
+    await db.execute(
+        """update sources set last_run_at = now(), last_error = %s,
+           consecutive_failures = consecutive_failures + 1 where id = %s""", msg, source_id)
+
+
+async def xsignal_record(items: list[Item], results: list[Result]) -> None:
+    """Per-account hit rate: how many of an account's gated posts the judge kept (the 'learn' step)."""
+    for it, r in zip(items, results, strict=True):
+        h = (it.author_handles.get("x") or "").lower()
+        if not h or r.status == "failed":
+            continue
+        kept = r.status in ("inserted", "duplicate")
+        await db.execute(
+            """insert into x_accounts (handle, judged, kept, last_kept_at) values (%s, 1, %s, case when %s then now() end)
+               on conflict (handle) do update set judged = x_accounts.judged + 1,
+                 kept = x_accounts.kept + excluded.kept,
+                 last_kept_at = coalesce(excluded.last_kept_at, x_accounts.last_kept_at)""",
+            h, int(kept), kept)
 
 
 async def run_connector(name: str, since: datetime | None = None, only_value: str | None = None) -> RunStats:
@@ -115,40 +206,36 @@ async def run_connector(name: str, since: datetime | None = None, only_value: st
         sources = [x for x in sources if x["value"] == only_value]
     pipe = Pipeline()
     async with http_client() as http:
-        for src in sources:
-            try:
-                state = dict(src["cursor"] or {})
-                items = (await _fetch(connector, http, src["kind"], src["value"], since, state))[: s.max_items_per_source]
-                await db.execute(
-                    """update sources set last_run_at = now(), last_success_at = now(), cursor = %s,
-                       last_error = null, consecutive_failures = 0 where id = %s""", Jsonb(state), src["id"])
-            except Exception as e:
-                msg = f"{src['kind']}:{src['value']}: {e!r}"[:500]
-                stats.errors.append(msg)
-                log.error("source.failed", connector=name, source=src["value"], error=repr(e)[:300])
-                await db.execute(
-                    """update sources set last_run_at = now(), last_error = %s,
-                       consecutive_failures = consecutive_failures + 1 where id = %s""", msg, src["id"])
-                continue
-            stats.fetched += len(items)
-            for r in await asyncio.gather(*(pipe.process(i) for i in items)):
+        if hasattr(connector, "fetch_many"):  # whole-scan connectors (X)
+            batches = [await _fetch_many(connector, http, sources, since, stats)]
+        else:
+            batches = [await _fetch_one(connector, http, src, since, stats) for src in sources]
+        for items in batches:
+            results = await asyncio.gather(*(pipe.process(i) for i in items))
+            for it, r in zip(items, results, strict=True):
                 stats.cost += r.cost
                 if r.status == "inserted":
                     stats.inserted += 1
                     stats.new_ids.append(r.item_id)
+                    if is_scanned_x_post(it):
+                        await pipe.follow(http, it)
                 elif r.status == "duplicate":
                     stats.duplicates += 1
+                elif r.status == "dropped":
+                    stats.dropped += 1
                 else:
                     stats.failed += 1
-    status = "ok" if not stats.errors else ("failed" if len(stats.errors) == len(sources) else "partial")
+            if name == "x":
+                await xsignal_record(items, results)
+    status = "ok" if not stats.errors else ("failed" if not stats.fetched and stats.errors else "partial")
     await db.execute(
         """update ingest_runs set finished_at = now(), status = %s, fetched = %s, inserted = %s,
-           duplicates = %s, failed = %s, cost_usd = %s, error = %s where id = %s""",
-        status, stats.fetched, stats.inserted, stats.duplicates, stats.failed, round(stats.cost, 6),
+           duplicates = %s, failed = %s, dropped = %s, cost_usd = %s, error = %s where id = %s""",
+        status, stats.fetched, stats.inserted, stats.duplicates, stats.failed, stats.dropped, round(stats.cost, 6),
         "\n".join(stats.errors)[:2000] or None, run["id"],
     )
     log.info("connector.done", connector=name, status=status, fetched=stats.fetched, inserted=stats.inserted,
-             duplicates=stats.duplicates, failed=stats.failed, cost=round(stats.cost, 5))
+             duplicates=stats.duplicates, dropped=stats.dropped, failed=stats.failed, cost=round(stats.cost, 5))
     return stats
 
 
@@ -164,16 +251,7 @@ async def ingest_url(url: str, submitted_by: str | None = None, follow_outlinks:
         item.submitted_by = submitted_by
         result = await pipe.process(item)
         if follow_outlinks and result.status == "inserted":
-            me = canonicalize(item.url)
-            targets = [u for u in extract_outlinks(item.outlinks, item.full_text) if u != me
-                       and ("arxiv.org/abs/" in u or u.startswith("https://github.com/"))][:3]
-            for u in targets:
-                try:
-                    sub = await pipe.process(await resolve(http, u, source=item.source))
-                    if sub.item_id:
-                        await link_item(sub.item_id)
-                except Exception as e:
-                    log.warning("outlink.failed", url=u, error=repr(e)[:200])
+            await pipe.follow(http, item)
         return result
 
 

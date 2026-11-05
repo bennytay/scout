@@ -92,6 +92,7 @@ class FakeLLM:
         e = Enrichment(
             summary=summary, topics=topics, authors=[], orgs=[], entities=Entities(),
             auki_relevance=rel, auki_relevance_reason=f"Heuristic: topics {', '.join(topics)}.",
+            signal="off_topic" if topics == ["other"] else "news",
         )
         return e, 0.0
 
