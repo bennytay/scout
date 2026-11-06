@@ -85,7 +85,7 @@ class ScoutBot(discord.Client):
             await self.scan()
             if sug := await radar_suggestion():
                 await self.feed(sug)
-        if await brief_due(self.cfg.brief_hour, self.cfg.brief_tz):
+        if self.cfg.daily_brief and await brief_due(self.cfg.brief_hour, self.cfg.brief_tz):
             b = await make_brief()
             if b and b["stories"]:
                 for msg in await brief_payload(b):

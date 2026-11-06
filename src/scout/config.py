@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     x_every_hours: int = 2                  # how often the bot scans X
     brief_hour: int = 9                     # the daily brief posts at this hour (local time below); /scan any time
     brief_tz: str = "Australia/Sydney"
+    daily_brief: bool = True                # false: only /scan posts a brief (e.g. while recording a demo)
     x_discovery_delay_hours: int = 6        # discovery reads posts at least this old, so likes have accrued
     # the gate (discovery posts only; radar accounts are trusted and go straight to the judge)
     x_min_likes: int = 10
