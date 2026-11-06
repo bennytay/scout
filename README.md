@@ -1,4 +1,4 @@
-# Scout: a robotics news radar (built for Auki Labs)
+# Scout: a robotics news radar 
 
 - **X is the source.** Every 2 hours Scout scans ~80 trusted robotics accounts plus open searches for posts that link to papers, code or big news.
 - **Only the signal is kept.** Free rules drop spam and low-engagement posts; Claude drops promo, off-topic and noise. In testing, nothing kept was junk.
