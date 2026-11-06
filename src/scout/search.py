@@ -23,7 +23,7 @@ TOPIC_SYNONYMS = {
 }
 ITEM_COLUMNS = """
   i.id, i.title, i.canonical_url as url, i.type::text as type, i.summary, i.published_at, i.source,
-  i.importance, i.auki_relevance, i.auki_relevance_reason, i.metrics, i.submitted_by,
+  i.importance, i.auki_relevance, i.auki_relevance_reason, i.metrics, i.submitted_by, i.media,
   coalesce((select array_agg(a.name order by ia.position) from item_authors ia
             join authors a on a.id = ia.author_id where ia.item_id = i.id), '{}') as authors,
   coalesce((select array_agg(o.name order by o.name) from item_orgs io
@@ -172,6 +172,9 @@ async def author_profile(name: str) -> dict | None:
     return _clean({
         "name": a["name"], "x_handle": a["x_handle"], "github_handle": a["github_handle"],
         "items_in_db": a["n_items"], "topics": topics, "frequent_coauthors": coauthors, "orgs": orgs,
+        "avatar": (await db.fetchrow(
+            """select i.media->>'avatar' as a from item_authors ia join items i on i.id = ia.item_id
+               where ia.author_id = %s and i.media ? 'avatar' limit 1""", a["id"]) or {}).get("a"),
         "recent_items": [_clean({k: i[k] for k in ("id", "title", "url", "type", "published_at")})
                          for i in await hydrate([r["id"] for r in items])],
     })
@@ -269,5 +272,6 @@ async def ask(question: str, limit: int = 8) -> dict:
         for n, r in enumerate(results, 1))
     answer, c = await llm.text(ANSWER_SYSTEM, f"Question: {question}\n\nSources:\n{context}", max_tokens=1200)
     cost += c
-    return {"answer": answer, "sources": [{"n": n, "title": r["title"], "url": r["url"]} for n, r in
-                                           enumerate(results, 1)], "plan": kw, "cost_usd": round(cost, 5)}
+    sources = [{"n": n, "id": r["id"], "title": r["title"], "url": r["url"], "type": r["type"],
+                "published_at": r.get("published_at")} for n, r in enumerate(results, 1)]
+    return {"answer": answer, "sources": sources, "plan": kw, "cost_usd": round(cost, 5)}

@@ -126,8 +126,8 @@ class ScoutBot(discord.Client):
                                     "relocalization, and is there code?*", mention_author=False)
                 return
             async with message.channel.typing():
-                text = await answer(question)
-            await message.reply(text, suppress_embeds=True, mention_author=False)
+                msg = await answer(question)
+            await message.reply(**to_discord(msg), mention_author=False)
 
     async def ingest_links(self, message: discord.Message, urls: list[str]):
         await message.add_reaction("⏳")
@@ -135,10 +135,11 @@ class ScoutBot(discord.Client):
             result = await ingest_url(url, submitted_by=str(message.author))
             if result.item_id:
                 item = await s.get_item(result.item_id)
-                text = fmt.link_reply(item, duplicate=result.status == "duplicate")
+                card = fmt.link_card(item, duplicate=result.status == "duplicate")
+                await message.reply(embed=discord.Embed.from_dict(card), mention_author=False)
             else:
-                text = f"⚠️ Couldn't read <{url}>: {result.error or 'unknown error'}"
-            await message.reply(text, suppress_embeds=True, mention_author=False)
+                await message.reply(f"⚠️ Couldn't read <{url}>: {result.error or 'unknown error'}",
+                                    suppress_embeds=True, mention_author=False)
         await message.remove_reaction("⏳", self.user)
         await message.add_reaction("✅")
 
@@ -172,12 +173,13 @@ def to_discord(msg: dict) -> dict:
     return out
 
 
-async def answer(question: str) -> str:
+async def answer(question: str, show_question: bool = False) -> dict:
     try:
-        return fmt.ask_reply(await s.ask(question))
+        return {"embeds": [fmt.ask_card(await s.ask(question), question if show_question else None)]}
     except Exception as e:
         log.error("ask.failed", error=repr(e)[:300])
-        return "⚠️ Something went wrong answering that. Try again, or use /topic or /author."
+        return {"content": "⚠️ Something went wrong answering that. Try again, or use /topic or /author.",
+                "embeds": []}
 
 
 async def radar_suggestion() -> str | None:
@@ -214,7 +216,7 @@ def register_commands(tree: app_commands.CommandTree) -> None:
     @tree.command(description="Ask anything about what Scout has stored")
     async def ask(interaction: discord.Interaction, question: str):
         await interaction.response.defer(thinking=True)
-        await interaction.followup.send(await answer(question), suppress_embeds=True)
+        await interaction.followup.send(**to_discord(await answer(question, show_question=True)))
 
     async def author_complete(_: discord.Interaction, current: str):
         rows = await s.authors_like(current)
@@ -226,24 +228,30 @@ def register_commands(tree: app_commands.CommandTree) -> None:
     async def author(interaction: discord.Interaction, name: str):
         await interaction.response.defer()
         p = await s.author_profile(name)
-        await interaction.followup.send(fmt.author_reply(p) if p else f"No author matching **{name}** yet.",
-                                        suppress_embeds=True)
+        if not p:
+            await interaction.followup.send(f"No author matching **{name}** yet.")
+            return
+        links = await s.linked([i["id"] for i in p.get("recent_items", [])])
+        for it in p.get("recent_items", []):
+            it["links"] = links.get(it["id"])
+        await interaction.followup.send(embed=discord.Embed.from_dict(fmt.author_card(p)))
 
     @tree.command(description="Latest stored items on a topic")
     @app_commands.choices(topic=topic_choices)
     async def topic(interaction: discord.Interaction, topic: app_commands.Choice[str], days: int = 14):
         await interaction.response.defer()
-        items = await s.search(topic=topic.value, since=f"{days}d", limit=10)
+        found = await s.search(topic=topic.value, since=f"{days}d", limit=50)
+        items = sorted(found, key=lambda i: -(i.get("importance") or 0))[:10]
         links = await s.linked([i["id"] for i in items])
-        await interaction.followup.send(
-            fmt.item_list(f"🏷️ **{topic.value}** · last {days} days", items, links), suppress_embeds=True)
+        card = fmt.topic_card(topic.value, days, items, links, len(found))
+        await interaction.followup.send(embed=discord.Embed.from_dict(card))
 
     @tree.command(description="What's been stored lately: counts, then the top posts and what they link to")
     async def recent(interaction: discord.Interaction, days: int = 3):
         await interaction.response.defer()
         r = await s.recent(days)
         links = await s.linked([i["id"] for i in r["top"]])
-        await interaction.followup.send(fmt.recent_reply(r, links), suppress_embeds=True)
+        await interaction.followup.send(embeds=[discord.Embed.from_dict(c) for c in fmt.recent_cards(r, links)])
 
     @tree.command(description="Scan X now and post a brief of anything new since the last one")
     async def scan(interaction: discord.Interaction):

@@ -26,27 +26,6 @@ def source_failed(source: str, errors: list[str]) -> str:
     return f"⚠️ **{LABEL.get(source, source)}** failed: `{_cut(errors[0] if errors else 'unknown error', 160)}`"
 
 
-def link_reply(item: dict, duplicate: bool = False) -> str:
-    """Reply to a team-shared link: 4 bullets."""
-    head = f"{ICON.get(item.get('type'), '🔗')} **{_link(item['title'], item['url'], 110)}**"
-    if item.get("importance") is not None:
-        head += f" · importance {item['importance']:.2f}"
-    if (item.get("auki_relevance") or 0) >= 0.75:
-        head += " · 🔥 Auki"
-    if duplicate:
-        head += f" · already tracked (seen in {', '.join(LABEL.get(s, s) for s in item.get('seen_in', []))})"
-    who = ", ".join(item.get("authors", [])[:3]) + (" et al." if len(item.get("authors", [])) > 3 else "")
-    who = " · ".join(x for x in [who, ", ".join(item.get("orgs", [])[:3])] if x)
-    related = item.get("related") or []
-    bullets = [
-        f"• **What:** {_cut(_first_sentence(item.get('summary')), 220)}",
-        f"• **Why Auki:** {_cut(item.get('auki_relevance_reason'), 220)}" if item.get("auki_relevance_reason") else None,
-        f"• **Topics:** {', '.join(item.get('topics', []))}" + (f" · **Who:** {_cut(who, 100)}" if who else ""),
-        "• **Related:** " + ", ".join(_link(r["title"], r["url"], 50) for r in related[:3]) if related else None,
-    ]
-    return "\n".join([head] + [b for b in bullets if b])[:LIMIT]
-
-
 BLUE, ORANGE = 0x378ADD, 0xD85A30  # card colour bar: orange marks stories that matter to Auki
 EMBEDS_PER_MSG, EMBED_CHARS = 10, 5500  # Discord: 10 embeds and 6000 characters per message
 
@@ -84,6 +63,8 @@ def story_card(n: int, story: dict, item: dict | None, big_image: bool) -> dict:
         card["footer"] = {"text": " · ".join(foot)}
     if media.get("image"):
         card["image" if big_image else "thumbnail"] = {"url": media["image"]}
+    if item.get("published_at"):
+        card["timestamp"] = item["published_at"].isoformat()  # Discord shows it in each reader's timezone
     return card
 
 
@@ -113,72 +94,176 @@ def brief_messages(b: dict, items: dict[int, dict] | None = None, when: str | No
                                                                                                 "embeds": []}]
 
 
-# ---------- replies to @Scout and slash commands ----------
+# ---------- replies to @Scout and slash commands: one card each ----------
 
-def _fit(lines: list[str]) -> str:
-    """Join lines, dropping whole lines from the end to stay under Discord's limit."""
-    out = []
-    for ln in lines:
-        if len("\n".join(out + [ln])) > LIMIT - 20:
-            out.append("…")
-            break
-        out.append(ln)
-    return "\n".join(out)
+PURPLE, TEAL, CLAY = 0x7F77DD, 0x1D9E75, 0xD85A30
+TAG = {"paper": "Paper", "repo": "Code", "model": "Model", "dataset": "Dataset", "article": "Page",
+       "video": "Video", "post": "Post"}
+TYPE_NAME = {"paper": "papers", "post": "X posts", "model": "models", "dataset": "datasets", "article": "articles",
+             "repo": "repos", "video": "videos"}
+DESC_LIMIT = 3900  # Discord: 4096 characters per embed description
 
 
-def item_line(item: dict, links: list[dict] | None = None) -> str:
-    from ..brief import link_label
+def _date(d) -> str:
+    """'6 Nov' from a date, datetime or ISO string."""
+    from datetime import date, datetime
 
-    line = f"{ICON.get(item.get('type'), '🔗')} {_link(item['title'], item['url'], 85)}"
-    score = item.get("importance", item.get("auki_relevance"))
-    if score is not None:
-        line += f" · {score:.2f}"
+    if not d:
+        return ""
+    if isinstance(d, str):
+        d = date.fromisoformat(d[:10])
+    if isinstance(d, datetime):
+        d = d.date()
+    return f"{d.day} {d:%b}"
+
+
+def _headline(item: dict) -> str:
+    """A readable headline. Post titles are raw post text ('@handle: …'), so posts use the first sentence of
+    Claude's summary instead; the handle goes on the meta line."""
+    if item.get("type") == "post" and (first := _first_sentence(item.get("summary"))):
+        return first.rstrip(".")
+    return re.sub(r"^@\w+:\s*", "", item["title"]) or item["title"]
+
+
+def topic_name(slug: str) -> str:
+    caps = {"vla": "VLA", "slam": "SLAM", "ai": "AI", "3d": "3D", "rl": "RL"}
+    words = [caps.get(w, w) for w in slug.split("-")]
+    return " ".join([words[0][:1].upper() + words[0][1:]] + words[1:])
+
+
+def _handle(item: dict) -> str | None:
+    m = re.match(r"https://x\.com/(\w+)/status/", item.get("url") or "")
+    return m.group(1) if m else None
+
+
+def item_row(n: int | None, item: dict, links: list[dict] | None = None) -> str:
+    """Two lines: the linked headline, then small grey meta (who · date · importance · linked paper/code)."""
+    title = _cut(_headline(item), 90).replace("[", "(").replace("]", ")")
+    head = f"**{f'{n}. ' if n else ''}[{title}]({item['url']})**"
+    who = f"𝕏 @{h}" if (h := _handle(item)) else f"{ICON.get(item.get('type'), '🔗')} {TAG.get(item.get('type'), 'Link')}"
+    meta = [who, _date(item.get("published_at"))]
+    if item.get("importance") is not None:
+        meta.append(f"importance {item['importance']:.2f}")
     if (item.get("auki_relevance") or 0) >= 0.75:
-        line += " 🔥"
-    if item.get("published_at"):
-        line += f" · {str(item['published_at'])[:10]}"
-    if links:
-        line += " · " + " · ".join(f"[{_cut(link_label(lk), 45)}](<{lk['url']}>)" for lk in links[:3])
-    return line
+        meta.append("🔥 Auki")
+    meta += [f"[{TAG.get(lk.get('type'), 'Link')}]({lk['url']})" for lk in (links or [])[:3]]
+    return head + "\n-# " + " · ".join(m for m in meta if m)
 
 
-def item_list(header: str, items: list[dict], links: dict[int, list[dict]] | None = None) -> str:
+def _rows(items: list[dict], links: dict[int, list[dict]] | None, budget: int, numbered: bool = True) -> str:
+    out = ""
+    for n, it in enumerate(items, 1):
+        row = item_row(n if numbered else None, it, (links or {}).get(it.get("id")))
+        if len(out) + len(row) + 2 > budget:
+            break
+        out += ("\n\n" if out else "") + row
+    return out
+
+
+def _picture(items: list[dict]) -> dict | None:
+    for it in items:
+        if img := (it.get("media") or {}).get("image"):
+            return {"url": img}
+    return None
+
+
+def topic_card(topic: str, days: int, items: list[dict], links: dict[int, list[dict]], total: int) -> dict:
+    name = topic_name(topic)
     if not items:
-        return header + "\nNothing stored yet."
-    links = links or {}
-    return _fit([header] + [item_line(i, links.get(i["id"])) for i in items])
+        return {"title": f"🏷️ {name}", "color": PURPLE, "description": f"Nothing stored in the last {days} days."}
+    more = f"{total}+" if total >= 50 else str(total)
+    sub = f"-# Most important first · last {days} days · {more} stored\n\n"
+    card = {"title": f"🏷️ {name}", "color": PURPLE, "description": sub + _rows(items, links, DESC_LIMIT - len(sub))}
+    if pic := _picture(items):
+        card["thumbnail"] = pic
+    if total > len(items):
+        card["footer"] = {"text": f"Top {len(items)} shown · /topic with more days to go further back"}
+    return card
 
 
-def ask_reply(r: dict) -> str:
-    """@Scout answer: the answer with [n] citations, then the numbered sources as links."""
-    answer = (r.get("answer") or "").strip()
-    sources = [f"[{s['n']}] {_link(s['title'], s['url'], 80)}" for s in r.get("sources", [])]
-    if not sources:
-        return answer[:LIMIT]
-    budget = LIMIT - len("\n".join(sources)) - 40
-    if len(answer) > budget:
-        answer = _cut(answer, max(budget, 300))
-    return _fit([answer, ""] + sources)
+def author_card(p: dict) -> dict:
+    handle = p.get("x_handle")
+    line = " · ".join(x for x in [", ".join(o["name"] for o in p.get("orgs", [])[:2]),
+                                  ("works with " + ", ".join(c["name"] for c in p.get("frequent_coauthors", [])[:3]))
+                                  if p.get("frequent_coauthors") else ""] if x)
+    desc = (f"-# {line}\n\n" if line else "") + "**Recent**\n" + _rows(
+        p.get("recent_items", [])[:8], {i.get("id"): i.get("links") for i in p.get("recent_items", [])}, 3000)
+    card = {"title": f"👤 {p['name']}", "color": TEAL, "description": desc,
+            "fields": [{"name": "Items stored", "value": f"**{p.get('items_in_db', 0)}**", "inline": True}]
+            + [{"name": topic_name(t["topic"]), "value": f"**{t['n']}**", "inline": True}
+               for t in p.get("topics", [])[:2]]}
+    if handle:
+        card["url"] = f"https://x.com/{handle}"
+        card["author"] = {"name": f"@{handle}", "url": card["url"]}
+    if p.get("avatar"):
+        card["thumbnail"] = {"url": p["avatar"]}
+    return card
 
 
-def author_reply(p: dict) -> str:
-    handle = f" ([@{p['x_handle']}](<https://x.com/{p['x_handle']}>))" if p.get("x_handle") else ""
-    head = f"👤 **{p['name']}**{handle} · {p.get('items_in_db', 0)} items"
-    lines = [head]
-    if p.get("topics"):
-        lines.append("• **Topics:** " + ", ".join(f"{t['topic']} ({t['n']})" for t in p["topics"][:5]))
-    if p.get("orgs"):
-        lines.append("• **Orgs:** " + ", ".join(o["name"] for o in p["orgs"][:4]))
-    if p.get("frequent_coauthors"):
-        lines.append("• **Works with:** " + ", ".join(c["name"] for c in p["frequent_coauthors"][:5]))
-    lines += [item_line(i) for i in p.get("recent_items", [])[:8]]
-    return _fit(lines)
+def recent_cards(r: dict, links: dict[int, list[dict]]) -> list[dict]:
+    """Two cards: what's stored (counts), then the top stories."""
+    stats = {"title": f"🗂️ What's stored · last {r['days']} days", "color": BLUE,
+             "description": f"-# {r['total']:,} items in the database in total",
+             "fields": [{"name": f"{ICON.get(t, '🔗')} {TYPE_NAME.get(t, t + 's')}", "value": f"**{n:,}**", "inline": True}
+                        for t, n in list(r["by_type"].items())[:9]] or
+                       [{"name": "Nothing new", "value": "No items stored in this window.", "inline": False}]}
+    if not r["top"]:
+        return [stats]
+    top = {"title": "Top stories", "color": BLUE, "description": _rows(r["top"], links, DESC_LIMIT)}
+    if pic := _picture(r["top"]):
+        top["thumbnail"] = pic
+    return [stats, top]
 
 
-def recent_reply(r: dict, links: dict[int, list[dict]]) -> str:
-    by_type = " · ".join(f"{ICON.get(t, '🔗')} {n} {t}s" for t, n in r["by_type"].items()) or "nothing new"
-    head = f"🗂️ **Last {r['days']} days:** {by_type} · {r['total']} items stored in total"
-    return item_list(head, r["top"], links)
+def ask_card(r: dict, question: str | None = None) -> dict:
+    """@Scout answer with [n] citations, then the numbered sources (dated, tagged)."""
+    sources = r.get("sources", [])
+    lines = []
+    for x in sources:
+        who = f"𝕏 @{h}" if (h := _handle(x)) else TAG.get(x.get("type"), "Link")
+        title = _cut(_headline(x), 70).replace("[", "(").replace("]", ")")
+        lines.append(f"-# [{x['n']}] [{title}]({x['url']}) · {who}" + (f" · {_date(x.get('published_at'))}"
+                                                                         if x.get("published_at") else ""))
+    tail = ("\n\n**Sources**\n" + "\n".join(lines)) if lines else ""
+    answer = _cut((r.get("answer") or "").strip(), DESC_LIMIT - len(tail) - 10)
+    card = {"description": answer + tail, "color": CLAY,
+            "footer": {"text": "Answered only from what Scout has stored"}}
+    if question:
+        card["author"] = {"name": _cut(question, 250)}
+    return card
+
+
+def link_card(item: dict, duplicate: bool = False) -> dict:
+    """Reply to a team-shared link: what it is, why it matters, topics and who, related items."""
+    who = ", ".join(item.get("authors", [])[:3]) + (" et al." if len(item.get("authors", [])) > 3 else "")
+    who = " · ".join(x for x in [who, ", ".join(item.get("orgs", [])[:3])] if x)
+    fields = [{"name": "What", "value": _cut(_first_sentence(item.get("summary")), 300) or "—", "inline": False}]
+    if item.get("auki_relevance_reason"):
+        fields.append({"name": "Why Auki", "value": _cut(item["auki_relevance_reason"], 300), "inline": False})
+    if item.get("topics"):
+        fields.append({"name": "Topics", "value": ", ".join(item["topics"]), "inline": True})
+    if who:
+        fields.append({"name": "Who", "value": _cut(who, 200), "inline": True})
+    if rel := item.get("related") or []:
+        fields.append({"name": "Related", "value": "\n".join(
+            f"[{_cut(_headline(x), 60)}]({x['url']})" for x in rel[:3]), "inline": False})
+    foot = [f"importance {item['importance']:.2f}"] if item.get("importance") is not None else []
+    if (item.get("auki_relevance") or 0) >= 0.75:
+        foot.append("🔥 Auki")
+    if duplicate:
+        foot.append("already tracked (seen in " + ", ".join(LABEL.get(s, s) for s in item.get("seen_in", [])) + ")")
+    card = {"title": f"{ICON.get(item.get('type'), '🔗')} {_cut(_headline(item), 240)}", "url": item["url"],
+            "color": ORANGE if (item.get("auki_relevance") or 0) >= 0.75 else BLUE, "fields": fields}
+    if foot:
+        card["footer"] = {"text": " · ".join(foot)}
+    media = item.get("media") or {}
+    if h := _handle(item):
+        card["author"] = {"name": f"@{h}", "url": item["url"], **({"icon_url": media["avatar"]} if media.get("avatar") else {})}
+    if media.get("image"):
+        card["thumbnail"] = {"url": media["image"]}
+    if item.get("published_at"):
+        card["timestamp"] = f"{item['published_at']}T00:00:00Z" if len(str(item["published_at"])) == 10 else str(item["published_at"])
+    return card
 
 
 def radar_suggestion(handle: str, kept: int, judged: int) -> str:

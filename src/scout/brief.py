@@ -214,7 +214,7 @@ async def lead_items(b: dict) -> dict[int, dict]:
     ids = list({lk["item_id"] for st in b["stories"] for lk in st["links"] if lk.get("item_id")})
     if not ids:
         return {}
-    rows = await db.fetch("select id, media, metrics, importance from items where id = any(%s)", ids)
+    rows = await db.fetch("select id, media, metrics, importance, published_at from items where id = any(%s)", ids)
     return {r["id"]: dict(r) for r in rows}
 
 
