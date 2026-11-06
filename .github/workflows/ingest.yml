@@ -1,9 +1,11 @@
 name: ingest
 # Hosted alternative to the bot's own monitor loop (use one or the other). X is the only scheduled source;
 # arXiv / GitHub / Hugging Face are fetched when a kept post links to them.
+# The schedule is off: the Discord bot scans X itself. When Scout is hosted (DATABASE_URL and API keys set as
+# repo secrets), uncomment the schedule to scan from GitHub instead, and don't run the bot's monitor too.
 on:
-  schedule:
-    - cron: "17 */2 * * *"      # every 2h (X_EVERY_HOURS); each scan reads only posts since the last one
+  # schedule:
+  #   - cron: "17 */2 * * *"    # every 2h (X_EVERY_HOURS); each scan reads only posts since the last one
   workflow_dispatch:
     inputs:
       days: {description: "look-back days (backfill, max 7 for X recent search)", required: false, default: ""}
