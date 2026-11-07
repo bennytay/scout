@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     x_max_per_author: int = 3               # per scan
     x_max_per_radar_author: int = 10
     hf_token: str | None = None
+    # RedNote (小红书) through a self-hosted xiaohongshu-mcp server (docs/rednote.md). Unset = connector skipped.
+    rednote_mcp_url: str | None = None      # e.g. http://localhost:18060
+    rednote_mcp_token: str | None = None    # only if the server was started with AUTH_TOKEN
+    rednote_every_hours: int = 6            # each search is a real browser page load: scan gently
+    rednote_sort: str = "综合"               # 综合 (relevance) | 最新 | 最多点赞 | 最多评论 | 最多收藏
+    rednote_publish_time: str = "一周内"      # 不限 | 一天内 | 一周内 | 半年内
+    rednote_min_likes: int = 20
+    rednote_max_per_author: int = 3         # per scan
+    rednote_max_details: int = 30           # note pages opened per scan (the expensive step)
 
     # Discord: the bot watches one links channel and posts the monitoring feed to another
     discord_token: str | None = None
@@ -61,6 +70,10 @@ class Settings(BaseSettings):
     alert_min_relevance: float = 0.75   # 🔥 highlight + reason line in the feed
     max_items_per_source: int = 100
     lookback_days: int = 2
+
+    @property
+    def rednote_enabled(self) -> bool:
+        return bool(self.rednote_mcp_url)
 
     @property
     def x_enabled(self) -> bool:

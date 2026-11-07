@@ -14,6 +14,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 from .. import db
 from ..config import settings
 from ..connectors import REGISTRY, http_client
+from ..connectors.rednote import has_cjk
 from ..connectors.resolve import resolve
 from ..log import log
 from ..models import Item, ItemType
@@ -29,9 +30,13 @@ FOLLOW = ("https://arxiv.org/abs/", "https://github.com/", "https://huggingface.
 MAX_FOLLOW = 3
 
 
-def is_scanned_x_post(item: Item) -> bool:
-    """X posts found by the scan are judged; posts the team shared are always kept."""
-    return item.source == "x" and item.type == ItemType.post and not item.submitted_by
+SCANNED_POST_SOURCES = ("x", "rednote")
+
+
+def is_scanned_post(item: Item) -> bool:
+    """Posts found by a scan (X, RedNote) are judged; posts the team shared are always kept."""
+    return item.source in SCANNED_POST_SOURCES and item.type == ItemType.post and not item.submitted_by
+
 
 
 def follow_targets(item: Item) -> list[str]:
@@ -87,13 +92,17 @@ class Pipeline:
             await store.merge_sighting(existing, item)
             return Result(existing, "duplicate")
 
-        embed_text = f"{item.title}\n{(item.summary or item.full_text or '')[:2000]}"
-        [vec], cost = await self.embedder.embed([embed_text])
-        vec = np.array(vec, dtype=np.float32)
-        if near := await dedupe.semantic_match(item.type.value, vec):
-            await store.merge_sighting(near[0], item)
-            log.info("item.semantic_dup", url=url, match=near[0], sim=round(near[1], 3))
-            return Result(near[0], "duplicate", cost)
+        # The embedding model is English-only, so a Chinese post (RedNote) is embedded, and near-dupe checked,
+        # from its English enrichment instead of its raw text.
+        foreign = has_cjk(f"{item.title} {item.summary or ''}")
+        cost = 0.0
+        vec = None
+        if not foreign:
+            vec, cost = await self._embed(item.title, item.summary or item.full_text)
+            if near := await dedupe.semantic_match(item.type.value, vec):
+                await store.merge_sighting(near[0], item)
+                log.info("item.semantic_dup", url=url, match=near[0], sim=round(near[1], 3))
+                return Result(near[0], "duplicate", cost)
 
         enrichment, llm_cost = None, 0.0
         try:
@@ -101,9 +110,21 @@ class Pipeline:
         except Exception as e:  # store the item anyway; enrich_status='failed' lets us retry later
             log.warning("enrich.failed", url=url, error=repr(e)[:300])
         cost += llm_cost
-        if enrichment and is_scanned_x_post(item) and enrichment.signal in DROP_SIGNALS:
+        if enrichment and is_scanned_post(item) and enrichment.signal in DROP_SIGNALS:
             log.info("item.judged_out", url=url, signal=enrichment.signal, title=item.title[:120])
             return Result(None, "dropped", cost)
+
+        if foreign:
+            if enrichment and enrichment.title_en and has_cjk(item.title):  # the original stays in full_text
+                head = item.title.split(": ", 1)[0] + ": " if item.title.startswith("@") and ": " in item.title else ""
+                item.full_text = f"{item.title}\n\n{item.full_text or ''}"
+                item.title = head + enrichment.title_en
+            vec, c = await self._embed(item.title, enrichment.summary if enrichment else item.summary)
+            cost += c
+            if enrichment and (near := await dedupe.semantic_match(item.type.value, vec)):
+                await store.merge_sighting(near[0], item)
+                log.info("item.semantic_dup", url=url, match=near[0], sim=round(near[1], 3))
+                return Result(near[0], "duplicate", cost)
 
         outlinks = [u for u in extract_outlinks(item.outlinks, item.full_text) if u != url]
         item_id = await store.insert_item(item, url, enrichment, vec, cost, self.llm.model, outlinks)
@@ -112,6 +133,10 @@ class Pipeline:
                  relevance=enrichment.auki_relevance if enrichment else None)
         return Result(item_id, "inserted", cost)
 
+
+    async def _embed(self, title: str, body: str | None) -> tuple[np.ndarray, float]:
+        [vec], cost = await self.embedder.embed([f"{title}\n{(body or '')[:2000]}"])
+        return np.array(vec, dtype=np.float32), cost
 
     async def follow(self, http: httpx.AsyncClient, item: Item) -> int:
         """Ingest what a kept post links to (paper, repo, model) and link them to it. Returns how many were new."""
@@ -223,7 +248,7 @@ async def run_connector(name: str, since: datetime | None = None, only_value: st
                 if r.status == "inserted":
                     stats.inserted += 1
                     stats.new_ids.append(r.item_id)
-                    if is_scanned_x_post(it):
+                    if is_scanned_post(it):
                         stats.expanded += await pipe.follow(http, it)
                 elif r.status == "duplicate":
                     stats.duplicates += 1

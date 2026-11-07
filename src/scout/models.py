@@ -57,6 +57,8 @@ class Enrichment(BaseModel):
     """Structured output of the enrichment LLM call."""
 
     summary: str = Field(description="2-3 sentence plain-English summary: what it is and what is new.")
+    title_en: str = Field("", description="Only if the item's title is not in English: an English headline, "
+                                          "<= 14 words. Otherwise empty.")
     topics: list[TopicSlug] = Field(description="1-3 topics from the fixed taxonomy, most relevant first.")
     authors: list[str] = Field(description="Person authors, full names. Empty if unknown.")
     orgs: list[str] = Field(description="Organisations/labs/companies involved. Canonical names.")

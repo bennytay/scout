@@ -56,15 +56,15 @@ class AnthropicLLM:
 
 
 KEYWORDS = {
-    "manipulation": r"manipulat|grasp|dexter|pick-and-place|bimanual|gripper",
-    "locomotion": r"locomot|legged|quadruped|gait|walking|biped",
-    "humanoids": r"humanoid",
-    "vla-foundation-models": r"vision-language-action|\bvla\b|foundation model|generalist polic|world model",
-    "sim2real": r"sim2real|sim-to-real|simulat|domain random|synthetic data",
-    "slam-spatial-mapping": r"\bslam\b|locali[sz]|mapping|reconstruct|spatial|gaussian splat|nerf|relocali",
+    "manipulation": r"manipulat|grasp|dexter|pick-and-place|bimanual|gripper|操作|抓取|灵巧|夹爪|双臂",
+    "locomotion": r"locomot|legged|quadruped|gait|walking|biped|四足|足式|行走",
+    "humanoids": r"humanoid|人形",
+    "vla-foundation-models": r"vision-language-action|\bvla\b|foundation model|generalist polic|world model|基础模型|大模型|世界模型",
+    "sim2real": r"sim2real|sim-to-real|simulat|domain random|synthetic data|仿真",
+    "slam-spatial-mapping": r"\bslam\b|locali[sz]|mapping|reconstruct|spatial|gaussian splat|nerf|relocali|定位|建图|重建",
     "perception": r"percept|segment|detect|depth|tracking|point cloud|tactile",
     "hardware": r"actuator|hardware|motor|sensor|exoskeleton",
-    "datasets-benchmarks": r"dataset|benchmark",
+    "datasets-benchmarks": r"dataset|benchmark|数据集",
     "multi-agent": r"multi-agent|multi-robot|swarm|fleet",
 }
 
@@ -89,11 +89,12 @@ class FakeLLM:
         rel = 0.85 if "slam-spatial-mapping" in topics else 0.6 if "multi-agent" in topics else 0.35
         title = re.search(r"title:\s*(.+)", user, re.IGNORECASE)
         summary = (title.group(1) if title else user[:200]).strip()
+        promo = re.search(r"推荐|双十一|618|闭眼入|哈哈哈", user)  # offline stand-in for the judge on RedNote
         e = Enrichment(
             summary=summary, topics=topics, authors=[], orgs=[], entities=Entities(),
             auki_relevance=rel, auki_relevance_reason=f"Heuristic: topics {', '.join(topics)}.",
             importance=0.3 if topics == ["other"] else 0.5,
-            signal="off_topic" if topics == ["other"] else "news",
+            signal="promo" if promo else "off_topic" if topics == ["other"] else "news",
         )
         return e, 0.0
 

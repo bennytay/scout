@@ -14,7 +14,7 @@ from .pipeline.run import ingest_url
 mcp = MCPServer(
     "scout",
     instructions=(
-        "Scout is a general robotics news radar (built for Auki Labs). X is the newsroom: high-signal robotics posts, plus the papers, "
+        "Scout is a general robotics news radar (built for Auki Labs). X (and RedNote / 小红书, for Chinese robotics research) is the newsroom: high-signal robotics posts, plus the papers, "
         "repos, models and datasets they link to, plus links the team shares in Discord. "
         "Use `search` for everything: free text (hybrid keyword + semantic) and/or structured fields. "
         "To look up a person, lab or topic, fill `author`, `org` or `topic` instead of putting names in `query`. "
@@ -35,7 +35,8 @@ async def search(query: str | None = None, author: str | None = None, org: str |
     query: free text (optional if filtering). author/org: fuzzy names, e.g. "Levine", "DeepMind".
     topic: manipulation | locomotion | humanoids | vla-foundation-models | sim2real | slam-spatial-mapping |
            perception | hardware | datasets-benchmarks | multi-agent | other (synonyms like "SLAM" work).
-    source: x | discord | arxiv | github | huggingface (the last three: things posts linked to).
+    source: x | rednote | discord | arxiv | github | huggingface (the last three: things posts linked to).
+            rednote = 小红书 notes (Chinese, stored with English summaries; search them in English).
     since: ISO date or relative like "7d", "2w", "3m". min_relevance: 0-1 Auki relevance floor.
     """
     return await s.search(query=query, author=author, org=org, topic=topic, type=type, source=source,

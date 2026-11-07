@@ -210,3 +210,33 @@ operator telemetry, and the counts live in `ingest_runs` anyway. Now:
 - Pictures and avatars come from the same X search request (`attachments.media_keys` expansion), stored in
   `items.media` (migration 013). Posts stored before that were backfilled free via fxtwitter
   (`scripts/backfill_media.py`).
+
+### D28. RedNote (小红书) as a second newsroom, through a self-hosted xiaohongshu-mcp server (refines D23)
+Much Chinese embodied-AI work is discussed on RedNote, in Chinese, by the researchers and students around it,
+and X misses most of it. RedNote has no public API, so the choice was the access route:
+- **Chosen: [xpzouying/xiaohongshu-mcp](https://github.com/xpzouying/xiaohongshu-mcp)**, the most-used RedNote MCP
+  server. It drives a logged-in RedNote web session in a headless browser (one Docker container, QR-code login) and
+  exposes both MCP and plain REST on :18060. Scout calls the REST side (`/feeds/search`, `/feeds/detail`,
+  `/login/status`), so the server is a swappable piece: any MCP client can use the same server too. It's free,
+  no reverse-engineered request signing lives in Scout, and its JSON shapes come from its Go source.
+- **Rejected:** request-signing scrapers in Scout (`xhs`, `xhshow`, Spider_XHS, MediaCrawler). The `x-s` signing
+  breaks every few weeks, and fixing it would become Scout's problem. **Hosted APIs** (TikHub: app_v2 `search_notes`,
+  about $0.01 a page) are the fallback if running a logged-in account isn't acceptable. Its response schema
+  couldn't be confirmed from its public docs, so it wasn't built blind.
+- **The funnel matches X's (D24):** keyword searches (a robotics term + a research word, e.g. `具身智能 论文`,
+  newest week) → a free gate on the card (a Chinese spam lexicon for coursework-for-hire, courses, selling and DMs;
+  ≥20 likes; per-author cap; copy-paste titles) → note detail only for cards that pass (each one opens a browser
+  page, capped at 30 per scan) → the same judge. The prompt adds RedNote-specific `promo` rules. A per-query
+  cursor remembers note ids, so each note is opened and paid for once.
+- **English in, English out.** Enrichment always writes English and adds `title_en`; the stored title becomes
+  `@poster: English headline`, and the original Chinese stays in `full_text`. The embedding model is English-only,
+  so Chinese posts are embedded, and near-duplicate checked, from the English summary *after* enrichment. Before
+  this change, any two Chinese texts embedded as near-identical vectors.
+- **Gentle by default:** a scan every 6h (`REDNOTE_EVERY_HOURS`), because each search is a real page load on a
+  real account. The xiaohongshu-mcp author reports long-running use without bans, but the account is the risk:
+  use a dedicated one.
+- **Measured** on 14 sample notes (`demo/rednote_sample_notes.json`), with Claude Haiku as judge: the gate removed 4
+  (2 spam, 1 low engagement, 1 copy). The judge removed a robot-vacuum shopping post (promo) and a dancing-robot
+  meme (noise). It kept all 8 paper explainers, each with a correct English headline and summary. Cost: $0.008.
+  These are sample notes written for the demo, not a recall or precision eval on real RedNote traffic. That eval
+  needs a live server.

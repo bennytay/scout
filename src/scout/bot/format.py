@@ -2,7 +2,7 @@
 import re
 
 LABEL = {"arxiv": "arXiv", "github": "GitHub", "huggingface": "Hugging Face", "hackernews": "Hacker News",
-         "alphaxiv": "alphaXiv", "rss": "RSS", "x": "X", "discord": "Discord"}
+         "alphaxiv": "alphaXiv", "rss": "RSS", "x": "X", "rednote": "RedNote", "discord": "Discord"}
 ICON = {"paper": "📄", "repo": "💻", "post": "💬", "article": "📰", "model": "🧠", "dataset": "🗂️", "video": "🎬"}
 LIMIT = 1900  # Discord hard limit is 2000
 
@@ -26,13 +26,17 @@ def source_failed(source: str, errors: list[str]) -> str:
     return f"⚠️ **{LABEL.get(source, source)}** failed: `{_cut(errors[0] if errors else 'unknown error', 160)}`"
 
 
+RED = 0xFF2442  # RedNote's colour
 BLUE, ORANGE = 0x378ADD, 0xD85A30  # card colour bar: orange marks stories that matter to Auki
 EMBEDS_PER_MSG, EMBED_CHARS = 10, 5500  # Discord: 10 embeds and 6000 characters per message
 
 
 def _lead(story: dict) -> dict:
-    """The story's lead link: its first X post, else its first link."""
-    return next((lk for lk in story["links"] if lk["url"].startswith("https://x.com/")), story["links"][0])
+    """The story's lead link: its first X post, else its first RedNote note, else its first link."""
+    for prefix in ("https://x.com/", "https://www.xiaohongshu.com/"):
+        if lead := next((lk for lk in story["links"] if lk["url"].startswith(prefix)), None):
+            return lead
+    return story["links"][0]
 
 
 def story_card(n: int, story: dict, item: dict | None, big_image: bool) -> dict:
@@ -44,15 +48,24 @@ def story_card(n: int, story: dict, item: dict | None, big_image: bool) -> dict:
     body = _cut(story["why"], 220)
     if others:
         body += "\n" + " · ".join(f"[{_cut(lk['label'], 40)}]({lk['url']})" for lk in others[:4])
-    card = {"title": _cut(f"{n}. {story['headline']}", 250), "url": lead["url"], "description": body,
+    url = media.get("link") or lead["url"]  # a RedNote note only opens with its xsec_token link
+    card = {"title": _cut(f"{n}. {story['headline']}", 250), "url": url, "description": body,
             "color": ORANGE if story.get("hot") else BLUE}
     if lead["url"].startswith("https://x.com/"):
         card["author"] = {"name": "@" + lead["url"].split("/")[3], "url": lead["url"]}
         if media.get("avatar"):
             card["author"]["icon_url"] = media["avatar"]
+    elif lead["url"].startswith("https://www.xiaohongshu.com/") and item.get("authors"):
+        card["author"] = {"name": f"小红书 RedNote · {item['authors'][0]}", "url": url}
+        if media.get("avatar"):
+            card["author"]["icon_url"] = media["avatar"]
     foot = []
     if metrics.get("x_likes"):
         foot.append(f"❤ {int(metrics['x_likes']):,}")
+    if metrics.get("xhs_likes"):
+        foot.append(f"❤ {int(metrics['xhs_likes']):,}")
+    if metrics.get("xhs_collects"):
+        foot.append(f"☆ {int(metrics['xhs_collects']):,}")
     if metrics.get("x_reposts"):
         foot.append(f"🔁 {int(metrics['x_reposts']):,}")
     if item.get("importance") is not None:
@@ -139,8 +152,14 @@ def _handle(item: dict) -> str | None:
 def item_row(n: int | None, item: dict, links: list[dict] | None = None) -> str:
     """Two lines: the linked headline, then small grey meta (who · date · importance · linked paper/code)."""
     title = _cut(_headline(item), 90).replace("[", "(").replace("]", ")")
-    head = f"**{f'{n}. ' if n else ''}[{title}]({item['url']})**"
-    who = f"𝕏 @{h}" if (h := _handle(item)) else f"{ICON.get(item.get('type'), '🔗')} {TAG.get(item.get('type'), 'Link')}"
+    url = (item.get("media") or {}).get("link") or item["url"]
+    head = f"**{f'{n}. ' if n else ''}[{title}]({url})**"
+    if h := _handle(item):
+        who = f"𝕏 @{h}"
+    elif item["url"].startswith("https://www.xiaohongshu.com/"):
+        who = "📕 RedNote" + (f" · {item['authors'][0]}" if item.get("authors") else "")
+    else:
+        who = f"{ICON.get(item.get('type'), '🔗')} {TAG.get(item.get('type'), 'Link')}"
     meta = [who, _date(item.get("published_at"))]
     if item.get("importance") is not None:
         meta.append(f"importance {item['importance']:.2f}")
@@ -178,6 +197,19 @@ def topic_card(topic: str, days: int, items: list[dict], links: dict[int, list[d
         card["thumbnail"] = pic
     if total > len(items):
         card["footer"] = {"text": f"Top {len(items)} shown · /topic with more days to go further back"}
+    return card
+
+
+def rednote_card(query: str | None, items: list[dict], links: dict[int, list[dict]]) -> dict:
+    """/rednote: stored RedNote (小红书) notes, best match first, with the papers/code they point to."""
+    title = f"📕 RedNote: {query}" if query else "📕 RedNote: latest"
+    if not items:
+        return {"title": title, "color": RED, "description": "No RedNote notes stored that match. "
+                "RedNote is scanned when a xiaohongshu-mcp server is configured (docs/rednote.md)."}
+    sub = "-# 小红书 notes, summarised in English · best match first\n\n"
+    card = {"title": title, "color": RED, "description": sub + _rows(items, links, DESC_LIMIT - len(sub))}
+    if pic := _picture(items):
+        card["thumbnail"] = pic
     return card
 
 

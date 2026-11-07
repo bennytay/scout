@@ -6,8 +6,8 @@
 2. Team links: any link posted in the links channel is ingested and answered in 4 bullets.
 3. Ask: @Scout <question> (or /ask). Claude turns the question into search filters (author, topic, date, …),
    searches, and answers with numbered sources.
-4. Look up, no LLM: /author (autocomplete), /topic, /recent ("what's stored?"), and /follow, /unfollow to edit the
-   X radar.
+4. Look up, no LLM: /author (autocomplete), /topic, /recent ("what's stored?"), /rednote (小红书 notes), and
+   /follow, /unfollow to edit the X radar.
 """
 import asyncio
 import re
@@ -85,23 +85,26 @@ class ScoutBot(discord.Client):
             await self.scan()
             if sug := await radar_suggestion():
                 await self.feed(sug)
+        if (self.cfg.rednote_enabled and await due("rednote", self.cfg.rednote_every_hours)
+                and not self.scan_lock.locked()):
+            await self.scan("rednote")
         if self.cfg.daily_brief and await brief_due(self.cfg.brief_hour, self.cfg.brief_tz):
             b = await make_brief()
             if b and b["stories"]:
                 for msg in await brief_payload(b):
                     await self.feed_message(msg)
 
-    async def scan(self):
-        """One X scan at a time (the 2-hourly loop and /scan share this)."""
+    async def scan(self, source: str = "x"):
+        """One scan at a time (the scheduled loop and /scan share this). source: x | rednote."""
         async with self.scan_lock:
             try:
-                st = await run_connector("x")
+                st = await run_connector(source)
             except Exception as e:
-                log.error("monitor.crashed", error=repr(e)[:300])
-                await self.feed(fmt.source_failed("x", [repr(e)]))
+                log.error("monitor.crashed", source=source, error=repr(e)[:300])
+                await self.feed(fmt.source_failed(source, [repr(e)]))
                 return None
         if st.errors:
-            await self.feed(fmt.source_failed("x", st.errors))
+            await self.feed(fmt.source_failed(source, st.errors))
         return st
 
     async def feed_message(self, msg: dict):
@@ -253,13 +256,24 @@ def register_commands(tree: app_commands.CommandTree) -> None:
         links = await s.linked([i["id"] for i in r["top"]])
         await interaction.followup.send(embeds=[discord.Embed.from_dict(c) for c in fmt.recent_cards(r, links)])
 
-    @tree.command(description="Scan X now and post a brief of anything new since the last one")
+    @tree.command(description="Search RedNote (小红书) notes Scout has stored, in English or Chinese")
+    async def rednote(interaction: discord.Interaction, query: str | None = None, days: int = 30):
+        await interaction.response.defer()
+        items = await s.search(query=query, source="rednote", since=f"{days}d", limit=8)
+        links = await s.linked([i["id"] for i in items])
+        await interaction.followup.send(embed=discord.Embed.from_dict(fmt.rednote_card(query, items, links)))
+
+    @tree.command(description="Scan X (and RedNote, if set up) now and post a brief of anything new")
     async def scan(interaction: discord.Interaction):
         await interaction.response.defer(thinking=True)
         bot = interaction.client
         st = await bot.scan()
+        if bot.cfg.rednote_enabled and (rn := await bot.scan("rednote")):
+            st = st or rn
+            if st is not rn:
+                st.fetched += rn.fetched
         if st is None:
-            await interaction.followup.send("⚠️ The X scan failed. Details are in the feed channel.")
+            await interaction.followup.send("⚠️ The scan failed. Details are in the feed channel.")
             return
         b = await make_brief()
         if not b or not b["stories"]:

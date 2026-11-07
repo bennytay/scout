@@ -42,7 +42,7 @@ async def _main(a) -> int:
             _print({"status": r.status, "item": await search.get_item(r.item_id) if r.item_id else None, "error": r.error})
         elif a.cmd == "search":
             _print(await search.search(query=a.query, author=a.author, org=a.org, topic=a.topic, type=a.type,
-                                       since=a.since, limit=a.limit))
+                                       source=a.source, since=a.since, limit=a.limit))
         elif a.cmd == "ask":
             r = await search.ask(a.question)
             print(r["answer"] + "\n")
@@ -136,7 +136,7 @@ def main() -> None:
     ad.add_argument("--by", default="cli")
     se = sub.add_parser("search")
     se.add_argument("query", nargs="?")
-    for f in ("author", "org", "topic", "type", "since"):
+    for f in ("author", "org", "topic", "type", "source", "since"):
         se.add_argument(f"--{f}")
     se.add_argument("--limit", type=int, default=10)
     ak = sub.add_parser("ask")

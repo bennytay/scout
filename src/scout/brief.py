@@ -26,7 +26,7 @@ from .providers.llm import get_llm
 PROMPTS = Path(__file__).resolve().parents[2] / "prompts"
 LABEL = {"paper": "paper", "repo": "code", "model": "model", "dataset": "dataset", "video": "video"}
 SOURCE_NAME = {"arxiv": "arXiv", "github": "GitHub", "huggingface": "Hugging Face", "hackernews": "Hacker News",
-               "alphaxiv": "alphaXiv", "rss": "RSS", "x": "X", "discord": "team links", "web": "web", "mcp": "MCP"}
+               "alphaxiv": "alphaXiv", "rss": "RSS", "x": "X", "rednote": "RedNote", "discord": "team links", "web": "web", "mcp": "MCP"}
 MAX_X, MAX_OTHER = 60, 70
 FILLER = {"for", "of", "the", "a", "an", "and", "to", "with", "via", "in", "on", "from", "by"}
 
@@ -65,7 +65,7 @@ For the tie-breaker, what Auki cares about:
 
 
 def _buzz(m: dict) -> str:
-    parts = [("❤", m.get("x_likes")), ("▲", m.get("hf_upvotes")), ("★", m.get("gh_stars")),
+    parts = [("❤", m.get("x_likes") or m.get("xhs_likes")), ("☆", m.get("xhs_collects")), ("▲", m.get("hf_upvotes")), ("★", m.get("gh_stars")),
              ("HN", m.get("hn_points")), ("ax", m.get("ax_votes")), ("♥", m.get("hf_likes"))]
     return " ".join(f"{k}{int(v)}" for k, v in parts if v)
 
@@ -91,6 +91,8 @@ def short_name(title: str) -> str:
 def link_label(c: dict) -> str:
     if c["url"].startswith("https://x.com/"):
         return "𝕏 @" + c["url"].split("/")[3]
+    if c["url"].startswith("https://www.xiaohongshu.com/"):
+        return "RedNote " + c["title"].split(":")[0] if c["title"].startswith("@") else "RedNote note"
     if "news.ycombinator.com" in c["url"]:
         return "HN thread"
     if c["type"] in LABEL:
@@ -103,12 +105,14 @@ async def candidates(since: datetime, until: datetime) -> dict[int, dict]:
               coalesce(i.auki_relevance, 0) as rel, coalesce(i.importance, i.auki_relevance, 0) as imp, i.metrics,
               (select count(distinct s.source) from item_sources s where s.item_id = i.id) as n_sources"""
     win = "i.ingested_at >= %s and i.ingested_at < %s and coalesce(i.importance, i.auki_relevance, 0) >= 0.3"
+    posts = "(i.canonical_url like 'https://x.com/%%' or i.canonical_url like 'https://www.xiaohongshu.com/%%')"
     x_posts = await db.fetch(
-        f"""select {cols} from items i where {win} and i.canonical_url like 'https://x.com/%%'
-            order by 2 * coalesce(i.importance, 0) + ln(1 + coalesce((i.metrics->>'x_likes')::float, 0)) desc
+        f"""select {cols} from items i where {win} and {posts}
+            order by 2 * coalesce(i.importance, 0)
+                     + ln(1 + coalesce((i.metrics->>'x_likes')::float, (i.metrics->>'xhs_likes')::float, 0)) desc
             limit {MAX_X}""", since, until)
     others = await db.fetch(
-        f"""select {cols} from items i where {win} and i.canonical_url not like 'https://x.com/%%'
+        f"""select {cols} from items i where {win} and not {posts}
             order by 3 * coalesce(i.importance, i.auki_relevance, 0) + 0.5 * coalesce(i.auki_relevance, 0)
                      + ln(1 + coalesce((i.metrics->>'hf_upvotes')::float, 0))
                      + ln(1 + coalesce((i.metrics->>'hn_points')::float, 0))

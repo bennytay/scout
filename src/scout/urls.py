@@ -55,6 +55,10 @@ def canonicalize(url: str) -> str:
         if m:
             return f"https://x.com/{m.group(1)}/status/{m.group(2)}"
         host = "x.com"
+    if host in {"xiaohongshu.com", "xhslink.com"} or host.endswith(".xiaohongshu.com"):
+        m = re.match(r"/(?:explore|discovery/item|search_result)/([0-9a-f]{24})", path)
+        if m:  # the note id; the xsec_token query is a per-viewer access token, not identity
+            return f"https://www.xiaohongshu.com/explore/{m.group(1)}"
     if host == "github.com" and (gh := github_repo_from(url)):
         rest = path.split("/", 3)[3] if path.count("/") >= 3 else ""
         # Keep releases as distinct items; everything else collapses to the repo.
@@ -86,7 +90,8 @@ def guess_type(url: str) -> str:
         return "paper"
     if c.startswith("https://github.com/"):
         return "repo"
-    if c.startswith("https://x.com/") or "news.ycombinator.com" in c or "reddit.com" in c or "linkedin.com" in c:
+    if c.startswith("https://x.com/") or "news.ycombinator.com" in c or "reddit.com" in c or "linkedin.com" in c \
+            or c.startswith("https://www.xiaohongshu.com/explore/"):
         return "post"
     if "huggingface.co/datasets/" in c:
         return "dataset"

@@ -1,4 +1,4 @@
-.PHONY: setup db migrate test eval bot mcp mcp-http ingest demo
+.PHONY: setup db migrate test eval bot mcp mcp-http ingest demo rednote-demo
 
 setup: db           ## local Postgres, deps, schema, a week of data (quiet: no Discord posts)
 	uv sync
@@ -35,3 +35,6 @@ demo: db            ## separate fresh database, then the bot fills the Discord f
 	docker compose exec -T db psql -U scout -d postgres -qc "drop database if exists scout_demo with (force)" -c "create database scout_demo"
 	DATABASE_URL=postgresql://scout:scout@localhost:54329/scout_demo LOOKBACK_DAYS=2 uv run scout migrate
 	DATABASE_URL=postgresql://scout:scout@localhost:54329/scout_demo LOOKBACK_DAYS=2 uv run scout bot
+
+rednote-demo: db    ## RedNote scan -> gate -> Claude judge/translate -> search, on sample notes (scripts/demo_rednote.sh)
+	scripts/demo_rednote.sh

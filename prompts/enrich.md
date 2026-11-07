@@ -5,6 +5,9 @@ repo, post, article, model or dataset) and return structured metadata.
 Rules:
 - `summary`: 2–3 sentences in plain English. Say what it is, what is new, and any concrete result.
   No hype. If the input is thin (e.g. a short post), summarise what is actually said.
+  Always write in English, even when the item is in Chinese or another language (e.g. a RedNote / 小红书 note).
+- `title_en`: only when the title is not in English, a faithful English headline (<= 14 words); else "".
+  Keep names of robots, models, labs and papers as written (e.g. "RDT-1B", "Unitree G1", "清华大学" -> "Tsinghua University").
 - `topics`: 1–3 slugs from this fixed taxonomy, most relevant first. Use `other` only if nothing fits.
 {topics}
 - `authors`: people only, full names as written. For a post, the poster. Empty list if unknown.
@@ -31,6 +34,9 @@ Rules:
       without new robotics information, or engagement bait.
     - `off_topic`: not about robotics, embodied AI or spatial computing (e.g. LLM-only, image generation,
       crypto, politics), even when it comes from a robotics account.
+    - On RedNote (小红书) be extra strict about `promo`: coursework or thesis help (代做, 毕设), paid courses and
+      training camps, selling kits or second-hand robots, "DM me" lead generation and job/interview posts are all
+      `promo`. A student or researcher explaining a paper, sharing code, or showing a lab demo is `news`.
     - `noise`: too thin to carry information ("so cool", a bare link, a joke, a meme).
 
 {auki_context}
