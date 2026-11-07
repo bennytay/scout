@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     rednote_mcp_url: str | None = None      # e.g. http://localhost:18060
     rednote_mcp_token: str | None = None    # only if the server was started with AUTH_TOKEN
     rednote_every_hours: int = 6            # each search is a real browser page load: scan gently
+    rednote_scheduled: bool = True          # false: only /scan_rednote and /scan scan RedNote (e.g. testing)
     rednote_sort: str = "综合"               # 综合 (relevance) | 最新 | 最多点赞 | 最多评论 | 最多收藏
     rednote_publish_time: str = "一周内"      # 不限 | 一天内 | 一周内 | 半年内
     rednote_min_likes: int = 20

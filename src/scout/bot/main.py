@@ -6,7 +6,7 @@
 2. Team links: any link posted in the links channel is ingested and answered in 4 bullets.
 3. Ask: @Scout <question> (or /ask). Claude turns the question into search filters (author, topic, date, …),
    searches, and answers with numbered sources.
-4. Look up, no LLM: /author (autocomplete), /topic, /recent ("what's stored?"), /rednote (小红书 notes), and
+4. Look up, no LLM: /author (autocomplete), /topic, /recent ("what's stored?"), /rednote (search 小红书 notes), /scan_rednote (scan RedNote now), and
    /follow, /unfollow to edit the X radar.
 """
 import asyncio
@@ -68,12 +68,10 @@ class ScoutBot(discord.Client):
     # ---------- 1. monitoring ----------
     @tasks.loop(minutes=5)
     async def monitor(self):
-        if not self.cfg.x_enabled:
-            if not self.said_no_x:
-                await self.feed("📡 X isn't configured (set X_API_KEY + X_API_SECRET), so I'm only reading team links.")
-                self.said_no_x = True
-        else:
-            await self.cycle()
+        if not self.cfg.x_enabled and not self.said_no_x:
+            await self.feed("📡 X isn't configured (set X_API_KEY + X_API_SECRET), so I'm not scanning X.")
+            self.said_no_x = True
+        await self.cycle()
         problems = set(await health.problems())
         if new := problems - self.reported_problems:  # only say it once
             await self.feed("🩺 " + "\n🩺 ".join(sorted(new)))
@@ -81,11 +79,12 @@ class ScoutBot(discord.Client):
 
     async def cycle(self) -> None:
         """Scan X if due (silently; failures are posted), the daily brief if due, maybe a radar suggestion."""
-        if await due("x", self.cfg.x_every_hours) and not self.scan_lock.locked():
+        if self.cfg.x_enabled and await due("x", self.cfg.x_every_hours) and not self.scan_lock.locked():
             await self.scan()
             if sug := await radar_suggestion():
                 await self.feed(sug)
-        if (self.cfg.rednote_enabled and await due("rednote", self.cfg.rednote_every_hours)
+        if (self.cfg.rednote_enabled and self.cfg.rednote_scheduled
+                and await due("rednote", self.cfg.rednote_every_hours)
                 and not self.scan_lock.locked()):
             await self.scan("rednote")
         if self.cfg.daily_brief and await brief_due(self.cfg.brief_hour, self.cfg.brief_tz):
@@ -176,6 +175,24 @@ def to_discord(msg: dict) -> dict:
     return out
 
 
+REDNOTE_NOT_SET_UP = ("📕 RedNote isn't set up. Set `REDNOTE_MCP_URL` to a logged-in xiaohongshu-mcp server "
+                      "(docs/rednote.md), or run `make rednote-bot-test` to try it on sample notes.")
+
+
+async def rednote_scan_payload(st) -> list[dict]:
+    """The reply to /scan_rednote: the scan's funnel, then the notes it just stored."""
+    rows = await db.fetch(
+        """select id, split_part(coalesce(full_text, ''), E'\n', 1) as original_title, outlinks from items
+           where id = any(%s) and source = 'rednote'""", st.new_ids)
+    extra = {r["id"]: r for r in rows}
+    items = sorted(await s.hydrate(list(extra)), key=lambda i: -(i.get("importance") or 0))
+    for i in items:
+        i["original_title"] = extra[i["id"]]["original_title"]
+        i["outlinks"] = extra[i["id"]]["outlinks"]
+    links = await s.linked([i["id"] for i in items])
+    return fmt.rednote_scan_messages(vars(st), items, links)
+
+
 async def answer(question: str, show_question: bool = False) -> dict:
     try:
         return {"embeds": [fmt.ask_card(await s.ask(question), question if show_question else None)]}
@@ -262,6 +279,25 @@ def register_commands(tree: app_commands.CommandTree) -> None:
         items = await s.search(query=query, source="rednote", since=f"{days}d", limit=8)
         links = await s.linked([i["id"] for i in items])
         await interaction.followup.send(embed=discord.Embed.from_dict(fmt.rednote_card(query, items, links)))
+
+    @tree.command(name="scan_rednote", description="Scan RedNote (小红书) now and show the new robotics notes")
+    async def scan_rednote(interaction: discord.Interaction):
+        bot = interaction.client
+        if not bot.cfg.rednote_enabled:
+            await interaction.response.send_message(REDNOTE_NOT_SET_UP, ephemeral=True)
+            return
+        if bot.scan_lock.locked():
+            await interaction.response.send_message("⏳ A scan is already running. Try again in a minute.",
+                                                    ephemeral=True)
+            return
+        await interaction.response.defer(thinking=True)  # a scan opens real pages: a minute or more
+        st = await bot.scan("rednote")
+        if st is None or (st.errors and not st.fetched):
+            err = (st.errors[0] if st and st.errors else "the scan crashed")[:300]
+            await interaction.followup.send(f"⚠️ RedNote scan failed: `{err}`")
+            return
+        for msg in await rednote_scan_payload(st):
+            await interaction.followup.send(**to_discord(msg))
 
     @tree.command(description="Scan X (and RedNote, if set up) now and post a brief of anything new")
     async def scan(interaction: discord.Interaction):

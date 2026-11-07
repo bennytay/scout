@@ -142,6 +142,9 @@ async def test_run_rednote_end_to_end(database):
     rdt = next(r for r in rows if "RDT-1B" in r["title"])
     assert "https://arxiv.org/abs/2410.07864" in rdt["outlinks"] and "xsec_token" in rdt["media"]["link"]
 
+    # Chinese poster names stay distinct authors (they used to normalise to one empty name)
+    assert (await database.fetchrow("select count(*) as n from authors"))["n"] == 8
+
     found = await search.search(source="rednote", limit=20)
     assert len(found) == 8 and all(f["source"] == "rednote" for f in found)
     assert not any("扫地机器人" in f["title"] for f in found)  # judged promo, never stored
@@ -178,3 +181,85 @@ async def test_foreign_posts_get_an_english_title_and_embedding(database, monkey
                                   r.item_id)
     assert row["title"] == "@具身小站: Tsinghua's RDT-1B: a 1.2B-parameter diffusion model for bimanual robots"
     assert "清华RDT-1B：12亿参数" in row["full_text"] and row["emb"]
+
+
+# ---------- Discord: /scan_rednote ----------
+
+class _Resp:
+    def __init__(self, sent):
+        self.sent = sent
+
+    async def defer(self, **kw):
+        self.sent.append(("defer", kw))
+
+    async def send_message(self, content=None, **kw):
+        self.sent.append(("message", content, kw))
+
+
+class _Followup:
+    def __init__(self, sent):
+        self.sent = sent
+
+    async def send(self, content=None, embeds=None, **kw):
+        self.sent.append(("followup", content, embeds or []))
+
+
+class _Interaction:
+    """Just enough of discord.Interaction to call a slash command's callback."""
+
+    def __init__(self, client):
+        self.client, self.sent = client, []
+        self.response, self.followup = _Resp(self.sent), _Followup(self.sent)
+
+
+def _command(bot, name):
+    return next(c for c in bot.tree.get_commands() if c.name == name)
+
+
+async def test_scan_rednote_command_posts_the_new_notes(database):
+    from scout.bot.main import ScoutBot
+
+    bot = ScoutBot()
+    cmd = _command(bot, "scan_rednote")
+    assert "RedNote" in cmd.description
+
+    with respx.mock:
+        _mock_server()
+        respx.route().mock(return_value=httpx.Response(404))
+        ia = _Interaction(bot)
+        await cmd.callback(ia)
+    assert ia.sent[0][0] == "defer"
+    first = ia.sent[1]
+    assert first[0] == "followup" and "14 notes found → 10 passed the filter → **8 new** kept" in first[1]
+    assert "2 judged out" in first[1]
+    cards = [e.to_dict() for msg in ia.sent[1:] for e in msg[2]]
+    assert len(cards) == 8
+    top = cards[0]  # most important first; each card leads with the English headline and links the note
+    assert "xsec_token=" in top["url"] and top["author"]["name"].startswith("小红书 RedNote · ")
+    assert "❤" in top["footer"]["text"] and "importance" in top["footer"]["text"]
+    rdt = next(c for c in cards if "RDT" in c["title"])
+    assert "[arXiv 2410.07864](https://arxiv.org/abs/2410.07864)" in rdt["description"]
+
+    with respx.mock:  # again: every note was already read, so nothing new
+        _mock_server()
+        ia = _Interaction(bot)
+        await cmd.callback(ia)
+    assert "**0 new**" in ia.sent[1][1] and "Nothing new since the last scan" in ia.sent[1][1]
+
+
+async def test_scan_rednote_command_reports_failures_and_missing_setup(database, monkeypatch):
+    from scout.bot.main import ScoutBot
+
+    bot = ScoutBot()
+    cmd = _command(bot, "scan_rednote")
+    with respx.mock:  # server up but logged out
+        respx.get(f"{BASE}/api/v1/login/status").mock(
+            return_value=httpx.Response(200, json={"success": True, "data": {"is_logged_in": False}}))
+        ia = _Interaction(bot)
+        await cmd.callback(ia)
+    assert ia.sent[-1][0] == "followup" and "RedNote scan failed" in ia.sent[-1][1] and "not logged in" in ia.sent[-1][1]
+
+    monkeypatch.setattr(bot.cfg, "rednote_mcp_url", None)
+    ia = _Interaction(bot)
+    await cmd.callback(ia)
+    assert ia.sent == [("message", ia.sent[0][1], {"ephemeral": True})] and "REDNOTE_MCP_URL" in ia.sent[0][1]

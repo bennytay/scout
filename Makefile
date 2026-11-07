@@ -1,4 +1,4 @@
-.PHONY: setup db migrate test eval bot mcp mcp-http ingest demo rednote-demo
+.PHONY: setup db migrate test eval bot mcp mcp-http ingest demo rednote-demo rednote-bot-test
 
 setup: db           ## local Postgres, deps, schema, a week of data (quiet: no Discord posts)
 	uv sync
@@ -38,3 +38,6 @@ demo: db            ## separate fresh database, then the bot fills the Discord f
 
 rednote-demo: db    ## RedNote scan -> gate -> Claude judge/translate -> search, on sample notes (scripts/demo_rednote.sh)
 	scripts/demo_rednote.sh
+
+rednote-bot-test: db    ## the Discord bot on sample RedNote notes: try /scan_rednote (scripts/rednote_bot_test.sh)
+	scripts/rednote_bot_test.sh

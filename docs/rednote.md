@@ -34,7 +34,29 @@ scout ingest --source rednote ─► gate (spam lexicon, ≥20 likes, per-author
    REDNOTE_MCP_TOKEN=            # only if you started the server with AUTH_TOKEN
    ```
 4. Run `scout migrate` (seeds 10 searches), then `scout ingest --source rednote`. The bot then scans every
-   `REDNOTE_EVERY_HOURS` (default 6) and `/scan` includes RedNote.
+   `REDNOTE_EVERY_HOURS` (default 6). Set `REDNOTE_SCHEDULED=false` to scan only on demand.
+
+## In Discord
+
+| Command | What it does |
+|---|---|
+| `/scan_rednote` | Scans RedNote now. Replies with the funnel (found → passed the filter → kept) and one card per new note: English headline, summary, the original Chinese title, likes, importance, and its arXiv/GitHub links. The card links to the note itself. |
+| `/rednote [query] [days]` | Searches the RedNote notes already stored, in English (e.g. `/rednote bimanual`). |
+| `/scan` | Scans X, and RedNote too when it's set up, then posts a brief. |
+
+A scan opens real pages on the RedNote account, so it takes a minute or more. Only one scan runs at a time.
+
+### Test it in Discord without a RedNote account
+
+```bash
+make db && make rednote-bot-test
+```
+
+This starts the stand-in server with the 14 sample notes and the bot on a fresh `scout_rednote_test` database. It
+turns off scheduled scans and the daily brief, and skips X. Then run `/scan_rednote` in your server: 8 cards come
+back. Run it again and you'll see "Nothing new", because each note is read only once. Restart the script to reset.
+It needs `DISCORD_TOKEN` and `ANTHROPIC_API_KEY` in `.env` (`LLM_PROVIDER=fake` works without Claude, but gives
+Chinese titles and rough topics).
 
 The same server is also an MCP server (`http://localhost:18060/mcp`), so Claude Desktop or Claude Code can browse
 RedNote directly next to Scout's own MCP.

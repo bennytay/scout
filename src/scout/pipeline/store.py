@@ -20,7 +20,8 @@ ORG_ALIASES = {  # small hand-curated map; extend as needed
 
 
 def normalize(name: str) -> str:
-    s = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    """'José  Müller' -> 'jose muller'; non-Latin names (具身小站) are kept, not dropped."""
+    s = "".join(c for c in unicodedata.normalize("NFKD", name) if not unicodedata.combining(c))
     return re.sub(r"\s+", " ", re.sub(r"[^\w\s-]", " ", s)).strip().lower()
 
 

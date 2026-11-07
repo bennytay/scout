@@ -213,6 +213,78 @@ def rednote_card(query: str | None, items: list[dict], links: dict[int, list[dic
     return card
 
 
+POSTER = re.compile(r"^@[^:]+:\s*")  # stored post titles start with '@poster: '
+
+
+def rednote_note_card(item: dict, links: list[dict] | None = None) -> dict:
+    """One RedNote note just scanned: English headline, what it is, the original title, its paper/code links."""
+    media, metrics = item.get("media") or {}, item.get("metrics") or {}
+    url = media.get("link") or item["url"]
+    head = POSTER.sub("", item["title"]) or item["title"]
+    body = _cut(item.get("summary"), 300)
+    if (orig := item.get("original_title")) and orig != item["title"]:
+        body += f"\n-# 原文: {_cut(POSTER.sub('', orig), 90)}"
+    if links:
+        body += "\n" + " · ".join(f"[{TAG.get(lk.get('type'), 'Link')}: {_cut(lk['title'], 40)}]({lk['url']})"
+                                  for lk in links[:3])
+    elif outs := [u for u in item.get("outlinks") or [] if u.startswith(("https://arxiv.org/", "https://github.com/"))]:
+        body += "\n" + " · ".join(f"[{'arXiv ' + u.rsplit('/', 1)[-1] if 'arxiv' in u else 'GitHub ' + u.split('github.com/')[1]}]({u})"
+                                  for u in outs[:3])
+    card = {"title": _cut(head, 250), "url": url, "description": body, "color": RED}
+    if item.get("authors"):
+        card["author"] = {"name": f"小红书 RedNote · {item['authors'][0]}", "url": url}
+        if media.get("avatar"):
+            card["author"]["icon_url"] = media["avatar"]
+    foot = [f"❤ {int(metrics['xhs_likes']):,}"] if metrics.get("xhs_likes") else []
+    if metrics.get("xhs_collects"):
+        foot.append(f"☆ {int(metrics['xhs_collects']):,}")
+    if item.get("importance") is not None:
+        foot.append(f"importance {item['importance']:.2f}")
+    if item.get("topics"):
+        foot.append(" · ".join(topic_name(t) for t in item["topics"][:2]))
+    if foot:
+        card["footer"] = {"text": " · ".join(foot)}
+    if media.get("image"):
+        card["thumbnail"] = {"url": media["image"]}
+    if item.get("published_at"):
+        p = item["published_at"]
+        card["timestamp"] = p.isoformat() if hasattr(p, "isoformat") else str(p)
+    return card
+
+
+def rednote_scan_messages(stats: dict, items: list[dict], links: dict[int, list[dict]] | None = None,
+                          limit: int = 10) -> list[dict]:
+    """/scan_rednote: one funnel line, then a card per new note (most important first)."""
+    st = {k: stats.get(k, 0) for k in ("fetched", "gated", "dropped", "inserted", "duplicates", "failed")}
+    head = (f"📕 **RedNote scan** · {st['fetched']} notes found → {st['fetched'] - st['gated']} passed the filter "
+            f"→ **{st['inserted']} new** kept")
+    extra = [f"{st['dropped']} judged out"] if st["dropped"] else []
+    if st["duplicates"]:
+        extra.append(f"{st['duplicates']} already stored")
+    if st["failed"]:
+        extra.append(f"{st['failed']} failed")
+    if stats.get("cost"):
+        extra.append(f"${stats['cost']:.3f}")
+    if extra:
+        head += " · " + " · ".join(extra)
+    if not items:
+        tail = ("\n-# Nothing new since the last scan. Each note is only read once."
+                if st["fetched"] == 0 else "\n-# Nothing new worth keeping this time.")
+        return [{"content": head + tail, "embeds": []}]
+    cards = [rednote_note_card(i, (links or {}).get(i["id"])) for i in items[:limit]]
+    msgs, cur, size = [], [], 0
+    for c in cards:
+        if cur and (len(cur) == EMBEDS_PER_MSG or size + _card_chars(c) > EMBED_CHARS):
+            msgs.append(cur)
+            cur, size = [], 0
+        cur.append(c)
+        size += _card_chars(c)
+    msgs.append(cur)
+    if len(items) > limit:
+        head += f"\n-# Top {limit} shown · /rednote to search them all"
+    return [{"content": head if i == 0 else None, "embeds": m} for i, m in enumerate(msgs)]
+
+
 def author_card(p: dict) -> dict:
     handle = p.get("x_handle")
     line = " · ".join(x for x in [", ".join(o["name"] for o in p.get("orgs", [])[:2]),
