@@ -1,0 +1,201 @@
+<title>Scout on RedNote</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Serif+SC:wght@500;700&display=swap">
+<style>
+/* Layout: a bilingual reading desk. One narrow column; the funnel as a ledger; each note shows English, with the original on demand. */
+:root {
+  --paper: #f6f7f8; --surface: #ffffff; --ink: #1d232b; --muted: #5d6773; --rule: #dde1e6;
+  --seal: #b8322a; --seal-soft: #f6e3e0; --ok: #2f6f4f; --ok-soft: #e1efe7; --chip: #eef1f4;
+  --f-display: "Noto Serif SC", "Songti SC", Georgia, serif;
+  --f-body: "IBM Plex Sans", "Noto Sans SC", "PingFang SC", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #13171c; --surface: #1b2027; --ink: #e6e9ed; --muted: #9aa4af; --rule: #2c333c;
+  --seal: #ec6a5c; --seal-soft: #3a2220; --ok: #74c49b; --ok-soft: #1d3329; --chip: #252c35; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #13171c; --surface: #1b2027; --ink: #e6e9ed; --muted: #9aa4af; --rule: #2c333c;
+  --seal: #ec6a5c; --seal-soft: #3a2220; --ok: #74c49b; --ok-soft: #1d3329; --chip: #252c35; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--paper); color: var(--ink); font: 15px/1.6 var(--f-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.wrap { max-width: 760px; margin: 0 auto; padding-block: 40px 64px; display: grid; gap: 40px }
+.wrap > *, ol.how > li { min-width: 0 }
+h1, h2 { font-family: var(--f-display); text-wrap: balance; margin: 0; font-weight: 700 }
+h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.2 }
+h1 .zh { color: var(--seal) }
+h2 { font-size: 20px; margin-bottom: 12px }
+p { margin: 0; max-width: 65ch }
+.lede { color: var(--muted); font-size: 16px; margin-top: 12px }
+.eyebrow { font: 500 12px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px }
+.note-sample { margin-top: 16px; font-size: 13px; color: var(--muted); border-left: 3px solid var(--rule); padding-left: 12px }
+a { color: var(--seal) }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--seal); outline-offset: 2px }
+
+/* funnel ledger */
+.ledger { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); overflow: hidden }
+.step { padding: 14px 16px; border-right: 1px solid var(--rule); min-width: 0 }
+.step:last-child { border-right: 0 }
+.step .n { font: 500 28px/1 var(--f-mono); font-variant-numeric: tabular-nums }
+.step .lab { font-size: 13px; font-weight: 600; margin-top: 6px }
+.step .why { font-size: 12px; color: var(--muted); margin-top: 2px }
+.step.final .n { color: var(--ok) }
+@media (max-width: 560px) { .ledger { grid-template-columns: 1fr 1fr } .step:nth-child(2) { border-right: 0 } .step:nth-child(-n+2) { border-bottom: 1px solid var(--rule) } }
+
+/* search */
+.searchbar { display: flex; gap: 8px; flex-wrap: wrap }
+.searchbar input { flex: 1 1 260px; min-width: 0; font: 15px var(--f-body); padding: 10px 12px; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface); color: var(--ink) }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px }
+.chips button { font: 13px var(--f-body); border: 1px solid var(--rule); background: var(--chip); color: var(--ink); border-radius: 999px; padding: 4px 10px; cursor: pointer }
+.chips button:hover { border-color: var(--seal) }
+.count { font: 12px var(--f-mono); color: var(--muted); margin-top: 14px }
+.cmd { font: 13px var(--f-mono); color: var(--muted) }
+
+.results { display: grid; gap: 12px; margin-top: 10px }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 16px; display: grid; gap: 8px; min-width: 0 }
+.card .who { font: 12px var(--f-mono); color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap }
+.card .who .src { color: var(--seal); font-weight: 500 }
+.card h3 { margin: 0; font-size: 16px; line-height: 1.4; font-weight: 600 }
+.card .sum { color: var(--ink); font-size: 14px }
+.meta { display: flex; gap: 6px; flex-wrap: wrap; align-items: center }
+.tag { font: 12px var(--f-mono); background: var(--chip); border-radius: 4px; padding: 2px 6px }
+.imp { font: 500 12px var(--f-mono); color: var(--ok); background: var(--ok-soft); border-radius: 4px; padding: 2px 6px; font-variant-numeric: tabular-nums }
+.links { display: flex; gap: 12px; flex-wrap: wrap; font: 12px var(--f-mono) }
+details.orig summary { cursor: pointer; font-size: 13px; color: var(--muted) }
+details.orig .zh { font-family: var(--f-body); white-space: pre-wrap; font-size: 13px; line-height: 1.7; margin-top: 8px; padding: 10px 12px; background: var(--paper); border-radius: 4px; overflow-wrap: anywhere }
+mark { background: var(--seal-soft); color: inherit; border-radius: 2px }
+.empty { color: var(--muted); font-size: 14px; padding: 12px 0 }
+
+/* filtered */
+table { border-collapse: collapse; width: 100%; font-size: 13px }
+.tbl { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--surface) }
+th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top }
+tr:last-child td { border-bottom: 0 }
+th { font: 500 11px var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted) }
+td.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap }
+.pill { font: 500 11px var(--f-mono); border-radius: 999px; padding: 2px 8px; white-space: nowrap }
+.pill.gate { background: var(--chip); color: var(--muted) }
+.pill.judge { background: var(--seal-soft); color: var(--seal) }
+
+/* how */
+ol.how { margin: 0; padding-left: 20px; display: grid; gap: 10px; max-width: 65ch }
+pre { margin: 8px 0 0; font: 13px/1.5 var(--f-mono); background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: 12px; overflow-x: auto }
+code { font-family: var(--f-mono); font-size: 13px }
+.flow { overflow-x: auto }
+footer { font-size: 13px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 16px }
+</style>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Scout · new source</div>
+    <h1>Robotics research from <span class="zh">小红书</span> RedNote, searchable in English</h1>
+    <p class="lede">Scout now scans RedNote for robotics papers, code and lab demos, the same way it scans X. It drops spam and shopping posts, has Claude translate and summarise each kept note, and stores it next to everything else. Search it here, with <code>/rednote</code> in Discord, or through MCP.</p>
+    <p class="note-sample">This page shows a real run of Scout's pipeline on 14 <strong>sample notes</strong> written for this demo, because this build environment can't reach RedNote. The accounts are fictional. The papers, figures and links are real. The English headlines, summaries, topics and importance scores below came from Claude during the run. A live scan needs a logged-in xiaohongshu-mcp server (set-up at the bottom of this page).</p>
+  </header>
+
+  <section aria-labelledby="funnel-h">
+    <div class="eyebrow" id="funnel-h">One scan, 10 searches</div>
+    <div class="ledger">
+      <div class="step"><div class="n">14</div><div class="lab">notes found</div><div class="why">by searches such as 具身智能 论文</div></div>
+      <div class="step"><div class="n">10</div><div class="lab">pass the free gate</div><div class="why">spam, likes, copies. Only these are opened.</div></div>
+      <div class="step final"><div class="n">8</div><div class="lab">kept by Claude</div><div class="why">promo and noise judged out</div></div>
+      <div class="step"><div class="n">$0.008</div><div class="lab">total LLM cost</div><div class="why">Claude Haiku, 10 calls</div></div>
+    </div>
+  </section>
+
+  <section aria-labelledby="search-h">
+    <h2 id="search-h">Search the kept notes</h2>
+    <div class="searchbar">
+      <label for="q" class="cmd" style="flex-basis:100%">scout search --source rednote</label>
+      <input id="q" type="search" placeholder="Try: bimanual, SLAM, humanoid, LoRA, Tsinghua" autocomplete="off">
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="count" id="count"></div>
+    <div class="results" id="results"></div>
+  </section>
+
+  <section aria-labelledby="out-h">
+    <h2 id="out-h">What was filtered out, and why</h2>
+    <p class="lede" style="margin:0 0 12px">The gate runs on the search card before anything is opened or sent to Claude. The two posts that passed it were judged out by Claude and never stored.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Note</th><th>Likes</th><th>Removed by</th></tr></thead>
+      <tbody id="out"></tbody>
+    </table></div>
+  </section>
+
+  <section aria-labelledby="how-h">
+    <h2 id="how-h">How it reaches RedNote</h2>
+    <p style="margin-bottom:14px">RedNote has no public API. Scout talks to <a href="https://github.com/xpzouying/xiaohongshu-mcp">xpzouying/xiaohongshu-mcp</a>, the most widely used RedNote MCP server. It runs a logged-in RedNote session in a headless browser and offers both MCP and a plain REST API. Scout calls three of its routes: <code>/feeds/search</code>, <code>/feeds/detail</code> and <code>/login/status</code>. No request-signing code lives in Scout, so when RedNote changes its web app, only the server needs updating.</p>
+    <ol class="how">
+      <li>Run the server with a dedicated RedNote account, and log in once by scanning a QR code in the RedNote app:
+        <pre>curl -O https://raw.githubusercontent.com/xpzouying/xiaohongshu-mcp/main/docker/docker-compose.yml
+docker compose up -d        # port 18060, cookies kept in ./data</pre></li>
+      <li>Point Scout at it in <code>.env</code> and run a scan:
+        <pre>REDNOTE_MCP_URL=http://localhost:18060
+scout migrate &amp;&amp; scout ingest --source rednote</pre></li>
+      <li>The Discord bot scans every 6 hours, <code>/scan</code> includes RedNote, kept notes can appear in the daily brief, and <code>/rednote dexterous hands</code> searches them.</li>
+      <li>To replay this demo without an account, run <code>make rednote-demo</code>. It starts a stand-in server that speaks the same API and serves the sample notes.</li>
+    </ol>
+  </section>
+
+  <footer>Branch <code>claude/eloquent-fermat-ljrjgz</code> in bennytay/scout. Code: <code>src/scout/connectors/rednote.py</code>. Notes: <code>docs/rednote.md</code>. Decision record: D28.</footer>
+</div>
+<script>
+const DATA = [{"zh_title": "清华RDT-1B：12亿参数的双臂操作扩散大模型", "nick": "具身小站", "query": "具身智能 论文", "likes": "1.2万", "collects": "8931", "zh_desc": "今天精读清华 TSAIL 的 RDT-1B（Robotics Diffusion Transformer）。\n1️⃣ 12 亿参数的扩散基础模型，专门做双臂操作\n2️⃣ 在 46 个数据集、100 万+ 条轨迹上预训练，提出统一的物理可解释动作空间，解决不同机器人动作空间不一致的问题\n3️⃣ 在自采的 6K+ 条双臂数据上微调，ALOHA 双臂上 zero-shot 泛化到没见过的物体和场景，few-shot 学新技能\n论文：arxiv.org/abs/2410.07864\n代码：github.com/thu-ml/RoboticsDiffusionTransformer\n#具身智能[话题]# #机器人[话题]# #论文分享[话题]#", "stage": "kept", "title": "@具身小站: Tsinghua RDT-1B: 1.2B-parameter diffusion model for bimanual manipulation", "summary": "A RedNote post by 具身小站 walking through Tsinghua TSAIL's RDT-1B, a 1.2B-parameter diffusion foundation model for bimanual manipulation. It is pretrained on 46 datasets with over 1 million trajectories using a unified, physically interpretable action space to handle mismatched robot action spaces. The post reports zero-shot generalisation to unseen objects and scenes on ALOHA bimanual hardware after fine-tuning on about 6K self-collected trajectories, plus few-shot learning of new skills.", "topics": ["vla-foundation-models", "manipulation"], "importance": 0.6, "orgs": ["TSAIL", "Tsinghua University"], "outlinks": ["https://arxiv.org/abs/2410.07864"], "signal": "news"}, {"zh_title": "π0 论文精读：flow matching 做机器人通用策略", "nick": "读论文的阿凯", "query": "具身智能 论文", "likes": "3456", "collects": "2789", "zh_desc": "Physical Intelligence 的 π0（pi-zero）终于读完了，记一下要点：\n· 在预训练 VLM（PaliGemma, 3B）上接一个 action expert，用 flow matching 输出连续动作块\n· 跨本体数据：7 种机器人构型、68 个任务\n· 能做叠衣服、组装纸箱、收拾餐桌这种长程任务\n官方开源了 openpi：github.com/Physical-Intelligence/openpi\n论文 arXiv:2410.24164\n#VLA[话题]# #具身智能[话题]#", "stage": "kept", "title": "@读论文的阿凯: π0 paper walkthrough: flow matching for general-purpose robot policies", "summary": "A Chinese-language reading note on Physical Intelligence's π0 paper (arXiv:2410.24164). π0 puts a flow-matching action expert on a 3B PaliGemma vision-language model to output continuous action chunks. It is trained on cross-embodiment data from 7 robot configurations and 68 tasks, and the post reports long-horizon tasks such as folding clothes, assembling boxes and clearing tables. The authors have open-sourced the code as openpi.", "topics": ["vla-foundation-models", "manipulation"], "importance": 0.7, "orgs": ["Physical Intelligence"], "outlinks": ["https://arxiv.org/abs/2410.24164"], "signal": "news"}, {"zh_title": "OpenVLA 上手：7B 开源 VLA，LoRA 单卡微调", "nick": "VLA笔记", "query": "VLA 机器人", "likes": "892", "collects": "1203", "zh_desc": "OpenVLA 实测记录：\n- 7B 参数，Llama 2 + DINOv2 + SigLIP 视觉编码\n- 在 Open X-Embodiment 的 97 万条机器人轨迹上训练\n- 论文里比 55B 的 RT-2-X 绝对成功率高 16.5%\n- 支持 LoRA 微调，消费级显卡能跑\n踩坑：动作归一化统计量一定要用自己数据集的！\nhttps://github.com/openvla/openvla\nhttps://arxiv.org/abs/2406.09246\n#VLA[话题]# #机器人学习[话题]#", "stage": "kept", "title": "@VLA笔记: OpenVLA Hands-On: 7B Open-Source VLA with Single-GPU LoRA Fine-Tuning", "summary": "A hands-on practitioner note on OpenVLA, a 7B open-source vision-language-action model built on Llama 2 with DINOv2 and SigLIP vision encoders and trained on 970k trajectories from Open X-Embodiment. The author reports that the paper shows 16.5% higher absolute success than the 55B RT-2-X and that LoRA fine-tuning runs on a consumer GPU. A practical pitfall: normalisation statistics must be computed from your own dataset.", "topics": ["vla-foundation-models", "datasets-benchmarks"], "importance": 0.4, "orgs": [], "outlinks": ["https://github.com/openvla/openvla", "https://arxiv.org/abs/2406.09246"], "signal": "news"}, {"zh_title": "复现 UMI：手持夹爪采数据，野外也能训策略", "nick": "双臂机器人日记", "query": "灵巧手 论文", "likes": "1567", "collects": "2210", "zh_desc": "Universal Manipulation Interface（UMI）复现第二周。\n核心：一个手持的 GoPro 夹爪，鱼眼镜头 + 侧面镜子提供隐式立体视觉，人拿着就能在任何地方采演示数据，再用 Diffusion Policy 训练，直接部署到机械臂上。\n我们按开源的 BOM 打印了夹爪，做洗碗/摆杯子任务，延迟对齐是最大的坑。\n论文 2402.10329 arxiv\ngithub.com/real-stanford/universal_manipulation_interface\n#机器人[话题]# #模仿学习[话题]#", "stage": "kept", "title": "@双臂机器人日记: Reproducing UMI: handheld gripper data collection, policy training in the wild", "summary": "A RedNote post by an account reproducing the UMI (Universal Manipulation Interface) paper, arXiv 2402.10329, in its second week. UMI uses a handheld GoPro gripper with a fisheye lens and side mirrors to give implicit stereo, so demonstrations can be collected anywhere, and a Diffusion Policy trained on that data is deployed on a robot arm. The author printed the open-source BOM gripper and ran dishwashing and cup-stacking tasks, reporting latency alignment as the main difficulty.", "topics": ["manipulation", "datasets-benchmarks"], "importance": 0.4, "orgs": ["Stanford University"], "outlinks": ["https://arxiv.org/abs/2402.10329"], "signal": "news"}, {"zh_title": "MASt3R-SLAM：基于3D重建先验的实时单目稠密SLAM", "nick": "SLAM搬砖人", "query": "SLAM 论文", "likes": "643", "collects": "1102", "zh_desc": "Imperial College（Davison 组）的 MASt3R-SLAM，CVPR 2025。\n把 MASt3R 双视图 3D 重建模型当先验，做实时单目稠密 SLAM，约 15 FPS，不需要假设固定的相机模型。\n对做空间计算 / 重定位的同学很值得看，全局一致的稠密地图效果很好。\narXiv:2412.12392\ngithub.com/rmurai0610/MASt3R-SLAM\n#SLAM[话题]# #三维重建[话题]#", "stage": "kept", "title": "@SLAM搬砖人: MASt3R-SLAM: Real-Time Monocular Dense SLAM With 3D Reconstruction Priors", "summary": "MASt3R-SLAM, from Imperial College London's Davison group and accepted at CVPR 2025, uses the MASt3R two-view 3D reconstruction model as a prior for real-time monocular dense SLAM. It runs at about 15 FPS and does not assume a fixed camera model. The post reports that the resulting globally consistent dense maps look strong, and links the arXiv paper and the GitHub code.", "topics": ["slam-spatial-mapping", "perception"], "importance": 0.7, "orgs": ["Imperial College London"], "outlinks": ["https://arxiv.org/abs/2412.12392"], "signal": "news"}, {"zh_title": "英伟达 GR00T N1：开源的人形机器人基础模型", "nick": "人形机器人观察", "query": "人形机器人 开源", "likes": "2.1万", "collects": "9876", "zh_desc": "NVIDIA 开源了 GR00T N1，面向通用人形机器人的基础模型。\n双系统架构：System 2 是视觉语言模型负责理解，System 1 是扩散 transformer 生成实时动作。\n训练数据混合了真机数据、人类视频和合成数据，在 Fourier GR-1 人形机器人上做了双臂操作演示。\n论文 arXiv 2503.14734\n代码 github.com/NVIDIA/Isaac-GR00T\n#人形机器人[话题]# #具身智能[话题]#", "stage": "kept", "title": "@人形机器人观察: NVIDIA open-sources GR00T N1, a humanoid robot foundation model", "summary": "NVIDIA has open-sourced GR00T N1, a foundation model for general-purpose humanoid robots, with a dual-system design: a vision-language model (System 2) for understanding and a diffusion transformer (System 1) that produces real-time actions. It is trained on a mix of real-robot data, human videos and synthetic data, and the post shows bimanual manipulation demos on a Fourier GR-1 humanoid. The post links the arXiv paper (2503.14734) and the Isaac-GR00T code repository.", "topics": ["vla-foundation-models", "humanoids"], "importance": 0.8, "orgs": ["Fourier", "NVIDIA"], "outlinks": ["https://arxiv.org/abs/2503.14734"], "signal": "news"}, {"zh_title": "Mobile ALOHA 复现：低成本全身遥操作 + 协同训练", "nick": "机器人研究僧", "query": "机器人 arxiv", "likes": "4521", "collects": "5320", "zh_desc": "斯坦福 Mobile ALOHA（Zipeng Fu, Tony Zhao, Chelsea Finn）复现笔记。\n· 低成本移动底盘 + 双臂，全身遥操作采数据\n· 和静态 ALOHA 数据集协同训练（co-training），每个任务约 50 条演示，成功率最高提升到 90%\n· 炒虾、开柜门、进电梯这些移动操作任务\nhttps://arxiv.org/abs/2401.02117\ngithub.com/MarkFzp/mobile-aloha\n#机器人[话题]# #模仿学习[话题]#", "stage": "kept", "title": "@机器人研究僧: Mobile ALOHA reproduction: low-cost whole-body teleoperation and co-training", "summary": "A Chinese-language reproduction note of Stanford's Mobile ALOHA: a low-cost mobile base with two arms, whole-body teleoperation for data collection, and co-training with the static ALOHA dataset. The author reports about 50 demonstrations per task and success rates up to 90% on mobile manipulation tasks such as stir-frying shrimp, opening cabinet doors and riding elevators. It is a replication of a known paper rather than a new result.", "topics": ["manipulation", "hardware"], "importance": 0.4, "orgs": ["Stanford University"], "outlinks": ["https://arxiv.org/abs/2401.02117"], "signal": "news"}, {"zh_title": "HumanPlus：人形机器人实时模仿人类动作", "nick": "Robotics小卷", "query": "人形机器人 开源", "likes": "987", "collects": "1340", "zh_desc": "HumanPlus（斯坦福）：\n1. 先在仿真里用 AMASS 人体动作数据训练底层策略 Humanoid Shadowing Transformer\n2. 只用一个 RGB 相机，人体姿态实时映射到人形机器人上做遥操作（shadowing）\n3. 用采到的约 40 条演示做模仿学习，学会穿鞋、叠衣服等技能\n硬件是 Unitree H1 + 灵巧手。\narXiv 2406.10454 · github.com/MarkFzp/humanplus\n#人形机器人[话题]#", "stage": "kept", "title": "@Robotics小卷: HumanPlus: Stanford's Humanoid Robot Imitates Human Movements in Real Time", "summary": "A RedNote post explaining HumanPlus from Stanford: a humanoid system that trains a low-level Humanoid Shadowing Transformer policy in simulation on AMASS human motion data, then maps a single RGB camera's human pose onto a Unitree H1 humanoid with dexterous hands for real-time teleoperation. The post says about 40 demonstrations were used for imitation learning to teach skills such as putting on shoes and folding clothes. It is a concrete summary of a published arXiv paper (2406.10454) and open-source code, not new original results from the poster.", "topics": ["humanoids", "manipulation", "sim2real"], "importance": 0.6, "orgs": ["Stanford University"], "outlinks": ["https://arxiv.org/abs/2406.10454"], "signal": "news"}, {"zh_title": "ROS机器人毕设代做 SLAM导航 仿真包过", "nick": "ROS代做工作室", "query": "机器人 arxiv", "likes": "230", "collects": "45", "zh_desc": "承接各类机器人毕设、课设：ROS 导航、SLAM 建图、机械臂抓取仿真，价格美丽，加V详聊～\n#毕设[话题]# #ROS[话题]#", "stage": "gated", "reason": "spam"}, {"zh_title": "具身智能 0 基础入门训练营 第3期 报名中", "nick": "具身智能训练营", "query": "具身智能 论文", "likes": "512", "collects": "301", "zh_desc": "8 周带你从 0 入门具身智能：VLA、强化学习、sim2real，大厂导师带教，学完内推！限时优惠，私信报名。", "stage": "gated", "reason": "spam"}, {"zh_title": "今天读了一篇视觉定位论文，有点没看懂", "nick": "小白学SLAM", "query": "SLAM 论文", "likes": "6", "collects": "3", "zh_desc": "ORB 特征那部分没太看懂，有没有大佬讲讲", "stage": "gated", "reason": "low_engagement"}, {"zh_title": "清华RDT-1B：12亿参数的双臂操作扩散大模型", "nick": "AI搬运工", "query": "VLA 机器人", "likes": "301", "collects": "120", "zh_desc": "（转）清华 RDT-1B 双臂扩散大模型，详见原帖。", "stage": "gated", "reason": "duplicate_text"}, {"zh_title": "扫地机器人怎么选？双十一闭眼入这3款", "nick": "数码好物分享", "query": "具身智能 论文", "likes": "3.4万", "collects": "1.1万", "zh_desc": "今年双十一扫地机器人推荐！吸力、避障、基站自清洁全方位对比，第二款性价比最高 👇 评论区见\n#扫地机器人[话题]# #双十一[话题]#", "stage": "judged_out", "signal": "promo"}, {"zh_title": "人形机器人跳舞也太可爱了吧哈哈哈", "nick": "今日份快乐", "query": "人形机器人 开源", "likes": "1.8万", "collects": "2300", "zh_desc": "哈哈哈哈哈 救命 好可爱 🤖💃", "stage": "judged_out", "signal": "noise"}];
+const TOPIC = {"vla-foundation-models":"VLA / foundation models","manipulation":"manipulation","humanoids":"humanoids",
+  "slam-spatial-mapping":"SLAM / mapping","perception":"perception","hardware":"hardware","sim2real":"sim2real",
+  "datasets-benchmarks":"datasets","locomotion":"locomotion","multi-agent":"multi-agent","other":"other"};
+const REASON = {spam:"Gate: spam (coursework for hire, paid course)", low_engagement:"Gate: under 20 likes",
+  duplicate_text:"Gate: copy of a post already kept"};
+const kept = DATA.filter(d => d.stage === "kept");
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const terms = q => q.toLowerCase().split(/\s+/).filter(Boolean);
+function hl(text, ts) {
+  let out = esc(text);
+  for (const t of ts) {
+    if (t.length < 2) continue;
+    out = out.replace(new RegExp("(" + t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi"), "<mark>$1</mark>");
+  }
+  return out;
+}
+function score(d, ts) {
+  if (!ts.length) return d.importance;
+  const hay = [[d.title, 3], [d.summary, 2], [(d.topics || []).join(" ") + " " + (d.orgs || []).join(" "), 2], [d.zh_desc + d.zh_title, 1]];
+  let s = 0;
+  for (const t of ts) {
+    let hit = 0;
+    for (const [h, w] of hay) if ((h || "").toLowerCase().includes(t)) hit += w;
+    if (!hit) return 0;
+    s += hit;
+  }
+  return s + d.importance;
+}
+function linkLabel(u) {
+  if (u.includes("arxiv.org/abs/")) return "arXiv " + u.split("/abs/")[1];
+  const m = u.match(/github\.com\/([^/]+\/[^/]+)/); if (m) return "GitHub " + m[1];
+  return u.replace(/^https?:\/\//, "");
+}
+function render() {
+  const q = $("q").value.trim(), ts = terms(q);
+  const hits = kept.map(d => [score(d, ts), d]).filter(([s]) => s > 0).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+  $("count").textContent = ts.length ? `${hits.length} of ${kept.length} kept notes match "${q}"` : `${kept.length} kept notes, most important first`;
+  $("results").innerHTML = hits.length ? hits.map(d => `
+    <article class="card">
+      <div class="who"><span class="src">RedNote</span><span>${esc(d.nick)}</span><span>❤ ${esc(d.likes)}</span><span>☆ ${esc(d.collects)}</span><span>found by “${esc(d.query)}”</span></div>
+      <h3>${hl(d.title.replace(/^@[^:]+:\s*/, ""), ts)}</h3>
+      <p class="sum">${hl(d.summary, ts)}</p>
+      <div class="meta"><span class="imp">importance ${d.importance.toFixed(2)}</span>${(d.topics || []).map(t => `<span class="tag">${esc(TOPIC[t] || t)}</span>`).join("")}</div>
+      ${d.outlinks && d.outlinks.length ? `<div class="links">${d.outlinks.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(linkLabel(u))}</a>`).join("")}</div>` : ""}
+      <details class="orig"><summary>原文 · original note</summary><div class="zh"><strong>${esc(d.zh_title)}</strong>\n\n${esc(d.zh_desc)}</div></details>
+    </article>`).join("") : `<div class="empty">No kept note matches. Scout's real search also ranks by meaning; this page matches words only.</div>`;
+}
+$("chips").innerHTML = ["bimanual", "SLAM", "humanoid", "LoRA", "flow matching", "Tsinghua"].map(c => `<button type="button">${c}</button>`).join("");
+$("chips").addEventListener("click", e => { if (e.target.tagName === "BUTTON") { $("q").value = e.target.textContent; render(); } });
+$("q").addEventListener("input", render);
+$("out").innerHTML = DATA.filter(d => d.stage !== "kept").map(d => `
+  <tr><td><div lang="zh">${esc(d.zh_title)}</div><div class="cmd">${esc(d.nick)}</div></td><td class="num">${esc(d.likes)}</td>
+  <td>${d.stage === "gated" ? `<span class="pill gate">${esc(REASON[d.reason] || d.reason)}</span>` : `<span class="pill judge">Claude: ${esc(d.signal)}</span>`}</td></tr>`).join("");
+render();
+
+</script>
