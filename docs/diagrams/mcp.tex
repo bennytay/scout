@@ -25,7 +25,7 @@
 \begin{tikzpicture}[node distance=9mm and 14mm]
 
   % --- write side ---
-  \node[box] (x) {X API};
+  \node[box] (x) {X API\\[-1pt] {\scriptsize\color{muted} + RedNote}};
   \node[box, right=of x] (pipe) {Ingest pipeline\\[-1pt]
     {\scriptsize\color{muted} filter $\cdot$ Claude judge $\cdot$ linked papers}};
 
