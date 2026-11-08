@@ -10,14 +10,12 @@
 
 ## Run it
 
-Needs Docker and [uv](https://docs.astral.sh/uv/). Copy `.env.example` to `.env` and fill in `ANTHROPIC_API_KEY`, a Discord bot token and two channel IDs, and optionally an X key.
-
 ```bash
-make setup   # Postgres + pgvector in Docker, schema, a week of posts (with an X key)
-make bot     # the Discord bot
+cp .env.example .env   # add ANTHROPIC_API_KEY, a Discord bot token + 2 channel IDs, optionally an X key
+make setup && make bot
 ```
 
-For MCP, add `uv run scout mcp` to Claude (or any MCP client) as a stdio server.
+Full setup: Discord bot, MCP for Claude, Cursor and Claude Code, RedNote, troubleshooting: [docs/setup.md](docs/setup.md).
 
 ## Architecture
 
