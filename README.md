@@ -8,6 +8,17 @@
 - **Used from Discord:** a daily brief (or `/scan`), paste links to store them, `/topic`, `/author`, `/recent`, `/rednote`, `/scan_rednote`, and `@Scout` questions in plain English.
 - **Used from any AI tool through MCP:** Claude, Cursor or your own agent can search the same database. No vendor lock-in.
 
+## Run it
+
+Needs Docker and [uv](https://docs.astral.sh/uv/). Copy `.env.example` to `.env` and fill in `ANTHROPIC_API_KEY`, a Discord bot token and two channel IDs, and optionally an X key.
+
+```bash
+make setup   # Postgres + pgvector in Docker, schema, a week of posts (with an X key)
+make bot     # the Discord bot
+```
+
+For MCP, add `uv run scout mcp` to Claude (or any MCP client) as a stdio server.
+
 ## Architecture
 
 ![Scout architecture: X and RedNote → ingest pipeline → Postgres → MCP server → any AI chat session, with the Discord bot on the same database](docs/diagrams/mcp.png)
